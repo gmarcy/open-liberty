@@ -29,25 +29,18 @@ task copyReadmeToBuildImage (type:Copy) {
            tokens: [BUILD_ID: bnd.buildID, LIBERTY_VERSION: bnd.libertyRelease])
 }
 
-assemble {
-    dependsOn copyPropertiesToBuildImage
-    dependsOn copyReadmeToBuildImage
-}
-
 task copyGeneratedToBuildImageBinTools (type:Copy) {
-    dependsOn parent.subprojects.assemble
+    dependsOn ':com.ibm.ws.kernel.instrument.check:publishWLPJars'
     from project.file('wlp/lib')
     into project.file('wlp/bin/tools')
     include 'bootstrap-agent.jar'
     rename 'bootstrap-agent.jar', 'ws-javaagent.jar'
 }
 
-task copyGeneratedToCnfLib (type:Copy) {
-    dependsOn parent.subprojects.assemble
-    from project.file('wlp/dev/api/spec/')
-    into project.file('lib')
-    include 'com.ibm.ws.org.osgi.core_*.jar'
-    rename '.*.jar', 'osgi.core.jar'
+assemble {
+    dependsOn copyPropertiesToBuildImage
+    dependsOn copyReadmeToBuildImage
+    dependsOn copyGeneratedToBuildImageBinTools
 }
 
 import groovy.json.*
@@ -191,8 +184,6 @@ publish.dependsOn zipOpenLibertyKernel
 // Includes all features.
 task zipOpenLibertyAll(type: Zip) {
     dependsOn parent.subprojects.assemble
-    dependsOn copyGeneratedToBuildImageBinTools
-    dependsOn copyGeneratedToCnfLib
     baseName 'openliberty-all'
     from projectDir
     include 'wlp/**'
