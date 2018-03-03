@@ -10,7 +10,6 @@
  *******************************************************************************/
 defaultTasks 'clean', 'build'
 
-plugins.apply 'java'
 plugins.apply 'jacoco'
 
 /* Project version is the Bundle-Version attribute if a bundle gets released, otherwise
