@@ -34,22 +34,6 @@ assemble {
     dependsOn copyReadmeToBuildImage
 }
 
-task copyGeneratedToBuildImageBinTools (type:Copy) {
-    dependsOn parent.subprojects.assemble
-    from project.file('wlp/lib')
-    into project.file('wlp/bin/tools')
-    include 'bootstrap-agent.jar'
-    rename 'bootstrap-agent.jar', 'ws-javaagent.jar'
-}
-
-task copyGeneratedToCnfLib (type:Copy) {
-    dependsOn parent.subprojects.assemble
-    from project.file('wlp/dev/api/spec/')
-    into project.file('lib')
-    include 'com.ibm.ws.org.osgi.core_*.jar'
-    rename '.*.jar', 'osgi.core.jar'
-}
-
 import groovy.json.*
 import org.gradle.internal.os.OperatingSystem
 
@@ -146,10 +130,7 @@ class PackageLibertyWithFeatures extends DefaultTask {
 task packageOpenLiberty(type: PackageLibertyWithFeatures) {
     enabled props["ghe.build.type"] == null || !props["ghe.build.type"].contains("ifix")
     dependsOn parent.subprojects.assemble
-    dependsOn parent.subprojects.publishFeatureResources
-    dependsOn copyGeneratedToBuildImageBinTools
-    dependsOn copyGeneratedToCnfLib
-    
+    dependsOn ':com.ibm.websphere.features:publishFeatureResources'
     withFeatures getGaFeatures()
     outputTo packageDir
 
@@ -157,12 +138,8 @@ task packageOpenLiberty(type: PackageLibertyWithFeatures) {
 
 task packageOpenLibertyKernel(type: PackageLibertyWithFeatures) {
     enabled props["ghe.build.type"] == null || !props["ghe.build.type"].contains("ifix")
-
     dependsOn parent.subprojects.assemble
-    dependsOn parent.subprojects.publishFeatureResources
-    dependsOn copyGeneratedToBuildImageBinTools
-    dependsOn copyGeneratedToCnfLib
-
+    dependsOn ':com.ibm.websphere.features:publishFeatureResources'
     withFeatures ''
     outputTo packageDir
     
@@ -191,9 +168,7 @@ publish.dependsOn zipOpenLibertyKernel
 // Includes all features.
 task zipOpenLibertyAll(type: Zip) {
     dependsOn parent.subprojects.assemble
-    dependsOn parent.subprojects.publishFeatureResources
-    dependsOn copyGeneratedToBuildImageBinTools
-    dependsOn copyGeneratedToCnfLib
+    dependsOn ':com.ibm.websphere.features:publishFeatureResources'
     baseName 'openliberty-all'
     from projectDir
     include 'wlp/**'
