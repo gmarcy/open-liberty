@@ -16,6 +16,44 @@
   //  }
   //}
 
+def featurePropertiesMap
+def getFeatureMap = {
+    if (featurePropertiesMap == null) {
+        Map<String,Properties> map = new TreeMap()
+        project(':com.ibm.websphere.features').fileTree(dir: '.', include: '**/*.feature').each { featureFile ->
+            Properties featureProps = new Properties()
+            featureFile.withInputStream { featureProps.load(it) }
+            map.put(featureProps['symbolicName'], featureProps)
+        }
+        featurePropertiesMap = map
+    }
+    featurePropertiesMap
+}
+
+rootProject.ext.featureMap = { getFeatureMap() }
+
+def gaFeatures
+def gaPublicFeatures
+rootProject.ext.gaFeatures = { useShortName ->
+    if (gaFeatures == null) {
+        Set<String> features = new TreeSet()
+        Set<String> publicFeatures = new TreeSet()
+        Map<String,Properties> map = getFeatureMap()
+        map.keySet().each { featureName ->
+            Properties featureProps = map[featureName]
+            if ('ga'.equals(featureProps['kind'])) {
+                features.add(featureProps['symbolicName'])
+                if ('public'.equals(featureProps['visibility'])) {
+                    publicFeatures.add(featureProps['IBM-ShortName'])
+                }
+            }
+        }
+        gaFeatures = features
+        gaPublicFeatures = publicFeatures
+    }
+    useShortName ? gaPublicFeatures : gaFeatures
+}
+
 task publishFeatureResources {
   dependsOn parent.subprojects.assemble
 
@@ -70,27 +108,18 @@ task publishFeatureResources {
       }
       String version = ("beta".equals(kind) ? bnd.libertyBetaVersion : bnd.libertyServiceVersion)
 
-      // featureBnd task expects files in build/l10n
       String relPath = featureFile.getPath().replace(projectDir.getPath() + '/', '')
       def pathParts = relPath.split('/')
       String visibility = pathParts[0]
       if (pathParts.length == 3) {
         copy {
           from new File(featureFolder, 'resources/l10n')
-          into project.file('build/l10n')
-        }
-        copy {
-          from new File(featureFolder, 'resources/l10n')
           into buildImage.file('wlp/lib/features/l10n')
         }
-        println visibility + ' feature ' + pathParts[2] + ' (' + pathParts[1] + ')'
-      } else {
-        println visibility + ' feature ' + pathParts[1]
       }
-      println symbolicName
-      println kind
 
       ant.featureBnd(bnd: featureFile.getPath(),
+              workspaceDir: bndWorkspace.getBase(),
               createESA: "true",
               dir: buildImage.file('wlp'),
               esaDir: new File(project.buildDir, 'repo'),
@@ -129,19 +158,17 @@ task publishFeatureResources {
         fileset(dir: "${buildDir}/repo", includes: "description.html,assetInfo.properties")
         zipfileset(dir: buildImage.file("lafiles/featureTerms_html"), fullpath: "lafiles/en.html", includes: "en.html")
       }
-
-      project.delete('build/l10n')
-
-      throw new GradleException("*** STOP ***")
+      delete "${buildDir}/repo/description.html"
+      delete "${buildDir}/repo/assetInfo.properties"
     }
   }
 }
-/*
+
 publish.dependsOn publishFeatureResources
 
 def featuresToPublish() {
   def features = []
-  fileTree(dir: project.projectDir, include: '*.feature').each {
+  fileTree(dir: project.projectDir, include: '**/*.feature').each {
     Properties props = new Properties()
     props.load(new FileInputStream(it))
     features.add(props['symbolicName'])
@@ -151,8 +178,10 @@ def featuresToPublish() {
 
 publishing {
   publications {
+    def counter = 0
     featuresToPublish().each { feature ->
-      maven(MavenPublication) {
+      counter++
+      "maven${counter}" (MavenPublication) {
         artifactId feature
         version project.version
         artifact source: new File(project.buildDir, 'repo/' + feature + ".esa"), extension: 'esa'
@@ -161,4 +190,3 @@ publishing {
     }
   }
 }
-*/

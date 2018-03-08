@@ -256,6 +256,7 @@ gradle.bndWorkspaceConfigure(workspace)
 /* Add cnf project to the graph */
 include bnd_cnf
 include 'build.image'
+include 'com.ibm.websphere.features'
 
 /* Start with the declared build project name */
 def defaultProjectName = bnd_build

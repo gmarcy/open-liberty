@@ -50,25 +50,8 @@ File packageDir = new File(project.buildDir, 'openliberty')
 def props = new Properties()
 rootProject.file('generated.properties').withInputStream { props.load(it) }
 
-String getGaFeatures() {
-    String features = ""
-    rootProject.fileTree(dir: '.', include: '*/*.feature').visit { element ->
-        if (element.isDirectory()) {
-            return
-        }
-        Properties featureProps = new Properties()
-        element.getFile().withInputStream { featureProps.load(it) }
-        if (featureProps['kind'] == 'ga' && featureProps['IBM-ShortName'] != null) {
-            String shortname = featureProps['IBM-ShortName']
-            features += "\n<feature>" + shortname + "</feature>"
-        }
-    }
-
-    features
-}
-
 class PackageLibertyWithFeatures extends DefaultTask {
-    String withFeatures
+    Closure withFeatures
     File outputTo
 
     @TaskAction
@@ -89,7 +72,7 @@ class PackageLibertyWithFeatures extends DefaultTask {
             def serverXml = project.file("wlp/usr/servers/packageOpenLiberty/server.xml")
             serverXml.text = """<?xml version="1.0" encoding="UTF-8"?>
         <server description="new server">
-        <featureManager>${withFeatures}
+        <featureManager>${withFeatures()}
         </featureManager>
         </server>
         """
@@ -127,22 +110,28 @@ class PackageLibertyWithFeatures extends DefaultTask {
     }
 }
 
+def gaPublicFeatures() {
+    String features = ""
+    gaFeatures(true).each {
+        features += '<feature>' + it + '</feature>\n'
+    }
+    features
+}
+
 task packageOpenLiberty(type: PackageLibertyWithFeatures) {
     enabled props["ghe.build.type"] == null || !props["ghe.build.type"].contains("ifix")
     dependsOn parent.subprojects.assemble
     dependsOn ':com.ibm.websphere.features:publishFeatureResources'
-    withFeatures getGaFeatures()
+    withFeatures this.&gaPublicFeatures
     outputTo packageDir
-
 }
 
 task packageOpenLibertyKernel(type: PackageLibertyWithFeatures) {
     enabled props["ghe.build.type"] == null || !props["ghe.build.type"].contains("ifix")
     dependsOn parent.subprojects.assemble
     dependsOn ':com.ibm.websphere.features:publishFeatureResources'
-    withFeatures ''
+    withFeatures { '' }
     outputTo packageDir
-    
 }
 
 // Includes only kind=ga features.
