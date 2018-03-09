@@ -8,12 +8,13 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-package com.ibm.ws.testing.opentracing.jaxrsHelloWorld;
+package com.ibm.ws.testing.mpOpenTracing;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.inject.Inject;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -21,14 +22,28 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 
-import com.ibm.ws.testing.mpOpenTracing.MPOpenTracing;
+import org.eclipse.microprofile.opentracing.Traced;
+
+import io.opentracing.Tracer;
 
 /**
- * Hello World JAXRS service.
+ * JAXRS service.
  */
 @ApplicationPath("rest")
 @Path("ws")
-public class HelloWorldJAXRS extends Application {
+public class MPOpenTracing extends Application {
+    /**
+     * <p>The open tracing tracer. Injected.</p>
+     */
+    @Inject
+    public Tracer tracer;
+
+    /**
+     * Injected class with Traced annotation on the class.
+     */
+    @Inject
+    private POJO pojo;
+
     /**
      * Return Hello World OK response.
      * @return Hello World text/plain.
@@ -37,6 +52,7 @@ public class HelloWorldJAXRS extends Application {
     @Path("helloWorld")
     @Produces(MediaType.TEXT_PLAIN)
     public String helloWorld() {
+        pojo.annotatedClassMethodImplicitlyTraced();
         return "Hello World";
     }
 
@@ -45,6 +61,26 @@ public class HelloWorldJAXRS extends Application {
      */
     @Override
     public Set<Class<?>> getClasses() {
-        return new HashSet<>(Arrays.asList(HelloWorldJAXRS.class));
+        return new HashSet<>(Arrays.asList(MPOpenTracing.class));
+    }
+    
+    /**
+     * <p>Service API used to peek at the tracer state.</p>
+     *
+     * <p>Produces the print string of the injected tracer as
+     * plain text.</p>
+     *
+     * @return The print string of the injected tracer as plain
+     *    text.
+     */
+    @GET
+    @Path("getTracerState")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String getTracerState() {
+        if ( tracer == null ) {
+            return "*** TRACER INJECTION FAILURE ***";
+        } else {
+            return tracer.toString();
+        }
     }
 }
