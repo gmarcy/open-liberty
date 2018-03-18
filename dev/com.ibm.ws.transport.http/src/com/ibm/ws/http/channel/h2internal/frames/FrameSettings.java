@@ -111,7 +111,7 @@ public class FrameSettings extends Frame {
     }
 
     @Override
-    public void processPayload(FrameReadProcessor frp) throws Http2Exception {
+    public void processPayload(FrameReadProcessor frp) throws FrameSizeException {
         // +-------------------------------+
         // |       Identifier (16)         |
         // +-------------------------------+-------------------------------+
@@ -123,17 +123,16 @@ public class FrameSettings extends Frame {
         }
         int numberOfSettings = this.payloadLength / 6;
         int settingId;
-        long settingValue;
+        int settingValue;
 
         while (numberOfSettings-- > 0) {
             settingId = frp.grabNext16BitInt();
             settingValue = frp.grabNext32BitInt();
-            settingValue = settingValue & 0x00000000ffffffffL; // convert to unsigned
             putSettingValue(settingId, settingValue);
         }
     }
 
-    public void processPayload(byte[] payload) throws Http2Exception {
+    public void processPayload(byte[] payload) throws ProtocolException {
         // +-------------------------------+
         // |       Identifier (16)         |
         // +-------------------------------+-------------------------------+
@@ -142,7 +141,7 @@ public class FrameSettings extends Frame {
 
         int numberOfSettings = this.payloadLength / 6;
         int settingId;
-        long settingValue;
+        int settingValue;
 
         int i = 0;
         while (numberOfSettings-- > 0) {
@@ -215,15 +214,21 @@ public class FrameSettings extends Frame {
         if (enablePush != -1 && enablePush != 0 && enablePush != 1) {
             throw new ProtocolException("SETTINGS_ENABLE_PUSH must be set to 0 or 1 " + streamId);
         }
+
+        long unsignedWindowSize = initialWindowSize & 0x00000000ffffffffL;
+        if (initialWindowSize != -1 && unsignedWindowSize > MAX_INITIAL_WINDOW_SIZE) {
+            throw new FlowControlException("FLOW_CONTROL_ERROR value exceeded the max allowable value" + streamId);
+        }
+
+        if (initialWindowSize != -1 && initialWindowSize > MAX_INITIAL_WINDOW_SIZE) {
+            throw new FlowControlException("FLOW_CONTROL_ERROR value exceeded the max allowable value" + streamId);
+        }
         if (maxFrameSize != -1 && maxFrameSize < INITIAL_MAX_FRAME_SIZE) {
-            throw new ProtocolException("SETTINGS_MAX_FRAME_SIZE value is below the allowable minimum value");
+            throw new ProtocolException("SETTINGS_MAX_FRAME_SIZE value is below the allowable minimum value" + streamId);
         }
         if (maxFrameSize != -1 && maxFrameSize > MAX_FRAME_SIZE) {
-            throw new ProtocolException("SETTINGS_MAX_FRAME_SIZE value exceeded the max allowable value");
+            throw new ProtocolException("SETTINGS_MAX_FRAME_SIZE value exceeded the max allowable value" + streamId);
         }
-        /*
-         * We store initialWindowSize as a signed int, so overflow is checked in putSettingValue instead of here
-         */
     }
 
     @Override
@@ -273,40 +278,25 @@ public class FrameSettings extends Frame {
         return maxHeaderListSize;
     }
 
-    private void putSettingValue(int id, long value) throws ProtocolException, FlowControlException {
+    private void putSettingValue(int id, int value) {
         switch (id) {
             case HEADER_TABLE_SIZE_ID:
-                if (value > Integer.MAX_VALUE) {
-                    throw new ProtocolException("Max header table size setting value exceeded max allowable value");
-                }
-                headerTableSize = (int) value;
+                headerTableSize = value;
                 break;
             case ENABLE_PUSH_ID:
-                enablePush = (int) value;
+                enablePush = value;
                 break;
             case MAX_CONCURRENT_STREAMS_ID:
-                if (value > Integer.MAX_VALUE) {
-                    throw new ProtocolException("Max concurrent streams setting value exceeded max allowable value");
-                }
-                maxConcurrentStreams = (int) value;
+                maxConcurrentStreams = value;
                 break;
             case INITIAL_WINDOW_SIZE_ID:
-                if (value > Integer.MAX_VALUE) {
-                    throw new FlowControlException("Initial window size setting value exceeded max allowable value");
-                }
-                initialWindowSize = (int) value;
+                initialWindowSize = value;
                 break;
             case MAX_FRAME_SIZE_ID:
-                if (value > Integer.MAX_VALUE) {
-                    throw new ProtocolException("Max frame size setting value exceeded max allowable value");
-                }
-                maxFrameSize = (int) value;
+                maxFrameSize = value;
                 break;
             case MAX_HEADER_LIST_SIZE_ID:
-                if (value > Integer.MAX_VALUE) {
-                    throw new ProtocolException("Max header list size setting value exceeded max allowable value");
-                }
-                maxHeaderListSize = (int) value;
+                maxHeaderListSize = value;
                 break;
             default:
                 break;

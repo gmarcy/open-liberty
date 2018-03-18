@@ -15,6 +15,7 @@ import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.ClientResponseFilter;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ResourceInfo;
+import javax.ws.rs.core.Context;
 
 import org.osgi.service.component.annotations.Component;
 
@@ -35,6 +36,9 @@ import com.ibm.ws.opentracing.OpentracingFilterHelper;
 public class OpenTracingFilterHelper implements OpentracingFilterHelper {
     private static final TraceComponent tc = Tr.register(OpenTracingFilterHelper.class);
 
+    @Context
+    protected ResourceInfo resourceInfo;
+
     //
     @Override
     public String getBuildSpanName(ClientRequestContext clientRequestContext) {
@@ -46,8 +50,8 @@ public class OpenTracingFilterHelper implements OpentracingFilterHelper {
 
     //
     @Override
-    public String getBuildSpanName(ContainerRequestContext incomingRequestContext, ResourceInfo resourceInfo) {
-        String methodName = "getBuildSpanName";
+    public String getBuildSpanName(ContainerRequestContext incomingRequestContext) {
+        String methodName = "filter(incoming)";
 
         String methodOperationName = OpenTracingService.getMethodOperationName(resourceInfo.getResourceMethod());
         String classOperationName = OpenTracingService.getClassOperationName(resourceInfo.getResourceMethod());

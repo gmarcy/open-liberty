@@ -22,8 +22,6 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
 import javax.ws.rs.container.ContainerResponseFilter;
-import javax.ws.rs.container.ResourceInfo;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
@@ -53,16 +51,9 @@ public class OpentracingContainerFilter implements ContainerRequestFilter, Conta
 
     public static final String EXCEPTION_KEY = OpentracingContainerFilter.class.getName() + ".Exception";
 
-    @Context
-    protected ResourceInfo resourceInfo;
-
-    private OpentracingFilterHelper helper;
+    private final OpentracingFilterHelper helper;
 
     OpentracingContainerFilter(OpentracingFilterHelper helper) {
-        setFilterHelper(helper);
-    }
-
-    void setFilterHelper(OpentracingFilterHelper helper) {
         this.helper = helper;
     }
 
@@ -103,7 +94,7 @@ public class OpentracingContainerFilter implements ContainerRequestFilter, Conta
 
         String buildSpanName;
         if (helper != null) {
-            buildSpanName = helper.getBuildSpanName(incomingRequestContext, resourceInfo);
+            buildSpanName = helper.getBuildSpanName(incomingRequestContext);
             if (buildSpanName == null) {
                 if (TraceComponent.isAnyTracingEnabled() && tc.isDebugEnabled()) {
                     Tr.debug(tc, methodName + " skipping not traced method");

@@ -94,30 +94,22 @@ public class SelfExtractor implements LicenseProvider {
     }
 
     public static class NullExtractProgress implements ExtractProgress {
-        @Override
         public void extractedFile(String f) {}
 
-        @Override
         public void downloadingFile(URL sourceUrl, File targetFile) {}
 
-        @Override
         public void dataDownloaded(int numBytes) {}
 
-        @Override
         public void setFilesToExtract(int count) {}
 
-        @Override
         public void commandRun(List args) {}
 
-        @Override
         public void commandsToRun(int count) {}
 
-        @Override
         public boolean isCanceled() {
             return false;
         }
 
-        @Override
         public void skippedFile() {}
     }
 
@@ -303,22 +295,18 @@ public class SelfExtractor implements LicenseProvider {
         return "extractInstruction";
     }
 
-    @Override
     public InputStream getLicenseAgreement() {
         return this.licenseProvider == null ? null : this.licenseProvider.getLicenseAgreement();
     }
 
-    @Override
     public InputStream getLicenseInformation() {
         return this.licenseProvider == null ? null : this.licenseProvider.getLicenseInformation();
     }
 
-    @Override
     public String getProgramName() {
         return this.licenseProvider == null ? null : this.licenseProvider.getProgramName();
     }
 
-    @Override
     public String getLicenseName() {
         return this.licenseProvider == null ? null : this.licenseProvider.getLicenseName();
     }
@@ -389,7 +377,6 @@ public class SelfExtractor implements LicenseProvider {
             this.output = output;
         }
 
-        @Override
         public void run() {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -511,8 +498,6 @@ public class SelfExtractor implements LicenseProvider {
                 return new ReturnCode(ReturnCode.BAD_OUTPUT, "invalidInstall", outputDir.getAbsolutePath());
             } else {
                 propFiles: for (int i = 0; i < files.length; i++) {
-                    if (!files[i].getAbsolutePath().endsWith(".properties"))
-                        continue;
                     Properties props = new Properties();
                     InputStream is = null;
                     try {
@@ -1162,7 +1147,6 @@ public class SelfExtractor implements LicenseProvider {
             this.out = out;
         }
 
-        @Override
         public void run() {
             try {
                 int count;
@@ -1178,7 +1162,6 @@ public class SelfExtractor implements LicenseProvider {
 
     protected static FilenameFilter createManifestFilter() {
         return new FilenameFilter() {
-            @Override
             public boolean accept(File dir, String name) {
                 boolean result = false;
                 if (name.endsWith(".mf"))

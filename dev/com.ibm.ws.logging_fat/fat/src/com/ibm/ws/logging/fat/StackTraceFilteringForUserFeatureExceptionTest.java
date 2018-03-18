@@ -27,7 +27,7 @@ public class StackTraceFilteringForUserFeatureExceptionTest extends AbstractStac
 
     @BeforeClass
     public static void setUp() throws Exception {
-        server = LibertyServerFactory.getLibertyServer("com.ibm.ws.logging.badconfig.user", StackTraceFilteringForUserFeatureExceptionTest.class);
+        server = LibertyServerFactory.getLibertyServer("com.ibm.ws.logging.badconfig.user");
 
         // install our user feature
         server.installUserBundle(BUNDLE_NAME); // NO HYPHENS! NO ".jar" SUFFIX!
@@ -42,12 +42,10 @@ public class StackTraceFilteringForUserFeatureExceptionTest extends AbstractStac
 
     @AfterClass
     public static void tearDown() throws Exception {
-        if (server != null && server.isStarted()) {
-            server.stopServer(MAIN_EXCEPTION);
+        server.stopServer();
 
-            server.uninstallUserBundle(BUNDLE_NAME);
-            server.uninstallUserFeature(FEATURE_NAME);
-        }
+        server.uninstallUserBundle(BUNDLE_NAME);
+        server.uninstallUserFeature(FEATURE_NAME);
     }
 
     @Test

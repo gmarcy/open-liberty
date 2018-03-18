@@ -1,13 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2017, 2018 IBM Corporation and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *     IBM Corporation - initial API and implementation
- *******************************************************************************/
 package com.ibm.ws.security.javaeesec.cdi.beans;
 
 import static org.junit.Assert.assertEquals;
@@ -30,12 +20,8 @@ import javax.security.auth.message.callback.PasswordValidationCallback;
 import javax.security.enterprise.AuthenticationException;
 import javax.security.enterprise.AuthenticationStatus;
 import javax.security.enterprise.CallerPrincipal;
-import javax.security.enterprise.authentication.mechanism.http.AuthenticationParameters;
 import javax.security.enterprise.authentication.mechanism.http.HttpMessageContext;
 import javax.security.enterprise.credential.BasicAuthenticationCredential;
-import javax.security.enterprise.credential.CallerOnlyCredential;
-import javax.security.enterprise.credential.Credential;
-import javax.security.enterprise.credential.UsernamePasswordCredential;
 import javax.security.enterprise.identitystore.CredentialValidationResult;
 import javax.security.enterprise.identitystore.IdentityStoreHandler;
 import javax.servlet.http.HttpServletRequest;
@@ -85,10 +71,6 @@ public class BasicHttpAuthenticationMechanismTest {
     private CredentialValidationResult validResult;
     private CallbackHandler callbackHandler;
     private ModulePropertiesProvider mpp;
-    private AuthenticationParameters ap;
-    private CallerOnlyCredential coCred;
-    private BasicAuthenticationCredential baCred;
-    private UsernamePasswordCredential upCred, invalidUpCred;
 
     @Before
     public void setUp() {
@@ -105,8 +87,7 @@ public class BasicHttpAuthenticationMechanismTest {
         response = mockery.mock(HttpServletResponse.class);
         httpMessageContext = mockery.mock(HttpMessageContext.class);
         clientSubject = new Subject();
-        String authzValue = Base64Coder.base64Encode("user1:user1pwd");
-        authzHeader = "Basic " + authzValue;
+        authzHeader = "Basic " + Base64Coder.base64Encode("user1:user1pwd");
         identityStoreHandler = mockery.mock(IdentityStoreHandler.class);
         principalName = "user1";
         callerPrincipal = new CallerPrincipal(principalName);
@@ -115,11 +96,6 @@ public class BasicHttpAuthenticationMechanismTest {
         callbackHandler = mockery.mock(CallbackHandler.class);
         mpp = mockery.mock(ModulePropertiesProvider.class);
         mechanism.setMPP(mpp);
-        ap = mockery.mock(AuthenticationParameters.class);
-        coCred = new CallerOnlyCredential("user1");
-        upCred = new UsernamePasswordCredential("user1", "user1pwd");
-        invalidUpCred = new UsernamePasswordCredential("user1", "invalid");
-        baCred = new BasicAuthenticationCredential(authzValue);
     }
 
     @After
@@ -408,36 +384,6 @@ public class BasicHttpAuthenticationMechanismTest {
     }
 
     @Test
-    public void testValidateRequestNewAuthenticateBasicAuthCredSuccess() throws Exception {
-        withNewAuthenticate(baCred).withIdentityStoreHandlerResult(validResult);
-        setModulePropertiesProvider(realmName);
-        assertValidateRequestSUCCESSwoHttpResponse();
-        assertSubjectContents(realmName, principalName);
-    }
-
-    @Test
-    public void testValidateRequestNewAuthenticateUsernamePasswordCredSuccess() throws Exception {
-        withNewAuthenticate(upCred).withIdentityStoreHandlerResult(validResult);
-        setModulePropertiesProvider(realmName);
-        assertValidateRequestSUCCESSwoHttpResponse();
-        assertSubjectContents(realmName, principalName);
-    }
-
-    @Test
-    public void testValidateRequestNewAuthenticateInvalidUsernamePasswordCredFailure() throws Exception {
-        withNewAuthenticate(invalidUpCred).withIdentityStoreHandlerResult(CredentialValidationResult.INVALID_RESULT);
-        setModulePropertiesProvider(realmName);
-        assertValidateRequestFAILUREwoHttpResponse();
-    }
-
-    @Test
-    public void testValidateRequestNewAuthenticateInvalidCredentialFailure() throws Exception {
-        withNewAuthenticate(coCred).withIdentityStoreHandlerResult(CredentialValidationResult.INVALID_RESULT);
-        setModulePropertiesProvider(realmName);
-        assertValidateRequestFAILUREwoHttpResponse();
-    }
-
-    @Test
     public void testSecureResponse() throws Exception {
         AuthenticationStatus status = mechanism.secureResponse(request, response, httpMessageContext);
         assertEquals("The AuthenticationStatus must be AuthenticationStatus.SUCCESS.", AuthenticationStatus.SUCCESS, status);
@@ -454,27 +400,22 @@ public class BasicHttpAuthenticationMechanismTest {
     }
 
     private BasicHttpAuthenticationMechanismTest preInvokePathForProtectedResource(String authzHeader) {
-        setHttpMessageContextExpectations(true).withAuthParamsExpectations(null).withAuthorizationHeader(authzHeader).withAuthenticationRequest(false);
+        setHttpMessageContextExpectations(true).withAuthorizationHeader(authzHeader).withAuthenticationRequest(false);
         return this;
     }
 
     private BasicHttpAuthenticationMechanismTest preInvokePathForUnprotectedResource(String authzHeader) {
-        setHttpMessageContextExpectations(false).withAuthParamsExpectations(null).withAuthorizationHeader(authzHeader).withAuthenticationRequest(false);
+        setHttpMessageContextExpectations(false).withAuthorizationHeader(authzHeader).withAuthenticationRequest(false);
         return this;
     }
 
     private BasicHttpAuthenticationMechanismTest authenticatePathForProtectedResource(String authzHeader) {
-        setHttpMessageContextExpectations(true).withAuthParamsExpectations(null).withAuthorizationHeader(authzHeader).withAuthenticationRequest(true);
+        setHttpMessageContextExpectations(true).withAuthorizationHeader(authzHeader).withAuthenticationRequest(true);
         return this;
     }
 
     private BasicHttpAuthenticationMechanismTest authenticatePathForUnprotectedResource(String authzHeader) {
-        setHttpMessageContextExpectations(false).withAuthParamsExpectations(null).withAuthorizationHeader(authzHeader).withAuthenticationRequest(true);
-        return this;
-    }
-
-    private BasicHttpAuthenticationMechanismTest withNewAuthenticate(Credential cred) {
-        setNewAuthenticateExpectations().withAuthParamsExpectations(ap).withCredentialExpectations(cred);
+        setHttpMessageContextExpectations(false).withAuthorizationHeader(authzHeader).withAuthenticationRequest(true);
         return this;
     }
 
@@ -492,41 +433,6 @@ public class BasicHttpAuthenticationMechanismTest {
                 will(returnValue(messageInfo));
                 allowing(httpMessageContext).isProtected();
                 will(returnValue(mandatory));
-            }
-        });
-        return this;
-    }
-
-    private BasicHttpAuthenticationMechanismTest setNewAuthenticateExpectations() {
-        final MessageInfo messageInfo = createMessageInfo(true);
-        mockery.checking(new Expectations() {
-            {
-                one(httpMessageContext).getClientSubject();
-                will(returnValue(clientSubject));
-                never(httpMessageContext).getRequest();
-                never(httpMessageContext).getResponse();
-                allowing(httpMessageContext).getMessageInfo();
-                will(returnValue(messageInfo));
-            }
-        });
-        return this;
-    }
-
-    private BasicHttpAuthenticationMechanismTest withAuthParamsExpectations(final AuthenticationParameters authParams) {
-        mockery.checking(new Expectations() {
-            {
-                one(httpMessageContext).getAuthParameters();
-                will(returnValue(authParams));
-            }
-        });
-        return this;
-    }
-
-    private BasicHttpAuthenticationMechanismTest withCredentialExpectations(final Credential cred) {
-        mockery.checking(new Expectations() {
-            {
-                allowing(ap).getCredential();
-                will(returnValue(cred));
             }
         });
         return this;
@@ -566,7 +472,7 @@ public class BasicHttpAuthenticationMechanismTest {
     private BasicHttpAuthenticationMechanismTest withResult(final CredentialValidationResult result) {
         mockery.checking(new Expectations() {
             {
-                one(identityStoreHandler).validate(with(new Matcher<Credential>() {
+                one(identityStoreHandler).validate(with(new Matcher<BasicAuthenticationCredential>() {
 
                     @Override
                     public void describeTo(Description description) {}
@@ -577,14 +483,8 @@ public class BasicHttpAuthenticationMechanismTest {
                     @Override
                     public boolean matches(Object obj) {
                         if (obj instanceof BasicAuthenticationCredential) {
-                            BasicAuthenticationCredential cred = (BasicAuthenticationCredential) obj;
-                            return "user1".equals(cred.getCaller()) && "user1pwd".equals(cred.getPasswordAsString());
-                        } else if (obj instanceof UsernamePasswordCredential) {
-                            UsernamePasswordCredential cred = (UsernamePasswordCredential) obj;
-                            return "user1".equals(cred.getCaller()) && ("user1pwd".equals(cred.getPasswordAsString()) || "invalid".equals(cred.getPasswordAsString()));
-                        } else if (obj instanceof CallerOnlyCredential) {
-                            CallerOnlyCredential cred = (CallerOnlyCredential) obj;
-                            return "user1".equals(cred.getCaller());
+                            BasicAuthenticationCredential basicAuthCredential = (BasicAuthenticationCredential) obj;
+                            return "user1".equals(basicAuthCredential.getCaller()) && "user1pwd".equals(basicAuthCredential.getPasswordAsString());
                         } else {
                             return false;
                         }
@@ -677,15 +577,6 @@ public class BasicHttpAuthenticationMechanismTest {
         return this;
     }
 
-    private BasicHttpAuthenticationMechanismTest withoutResponseStatus() {
-        mockery.checking(new Expectations() {
-            {
-                never(response).setStatus(with(any(int.class)));
-            }
-        });
-        return this;
-    }
-
     private BasicHttpAuthenticationMechanismTest setModulePropertiesProvider(final String realmName) {
         final Properties props = new Properties();
         props.put(JavaEESecConstants.REALM_NAME, realmName);
@@ -703,23 +594,10 @@ public class BasicHttpAuthenticationMechanismTest {
         return this;
     }
 
-    private void assertValidateRequestSUCCESSwoHttpResponse() throws AuthenticationException {
-        withoutResponseStatus();
-        AuthenticationStatus status = mechanism.validateRequest(request, response, httpMessageContext);
-        assertEquals("The AuthenticationStatus must be AuthenticationStatus.SUCCESS.", AuthenticationStatus.SUCCESS, status);
-    }
-
     private void assertValidateRequestSUCCESS() throws AuthenticationException {
         withResponseStatus(HttpServletResponse.SC_OK);
         AuthenticationStatus status = mechanism.validateRequest(request, response, httpMessageContext);
         assertEquals("The AuthenticationStatus must be AuthenticationStatus.SUCCESS.", AuthenticationStatus.SUCCESS, status);
-    }
-
-    private void assertValidateRequestFAILUREwoHttpResponse() throws AuthenticationException {
-        withoutResponseStatus();
-
-        AuthenticationStatus status = mechanism.validateRequest(request, response, httpMessageContext);
-        assertEquals("The AuthenticationStatus must be AuthenticationStatus.SEND_FAILURE.", AuthenticationStatus.SEND_FAILURE, status);
     }
 
     private void assertValidateRequestFAILURE() throws AuthenticationException {

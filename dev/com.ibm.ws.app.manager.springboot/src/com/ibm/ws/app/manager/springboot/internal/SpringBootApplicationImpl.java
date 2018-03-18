@@ -395,9 +395,8 @@ public class SpringBootApplicationImpl extends DeployedAppInfoBase implements Sp
     }
 
     private static void thinSpringApp(LibIndexCache libIndexCache, File springAppFile, File thinSpringAppFile, long lastModified) throws IOException, NoSuchAlgorithmException {
-        File parent = libIndexCache.getLibIndexParent();
-        File workarea = libIndexCache.getLibIndexWorkarea();
-        SpringBootThinUtil springBootThinUtil = new SpringBootThinUtil(springAppFile, thinSpringAppFile, workarea, parent, true);
+        File libIndexCacheFile = libIndexCache.getLibIndexRoot();
+        SpringBootThinUtil springBootThinUtil = new SpringBootThinUtil(springAppFile, thinSpringAppFile, libIndexCacheFile, true);
         springBootThinUtil.execute();
         thinSpringAppFile.setLastModified(lastModified);
     }
@@ -519,7 +518,7 @@ public class SpringBootApplicationImpl extends DeployedAppInfoBase implements Sp
         List<ContainerInfo> result = new ArrayList<>();
         Map<String, String> indexMap = readIndex(indexFile);
         for (Map.Entry<String, String> entry : indexMap.entrySet()) {
-            Container libContainer = libIndexCache.getLibraryContainer(entry);
+            Container libContainer = libIndexCache.getLibraryContainer(entry.getValue());
             if (libContainer == null) {
                 throw new UnableToAdaptException("No library found for:" + entry.getKey() + "=" + entry.getValue());
             }

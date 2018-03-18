@@ -53,13 +53,9 @@ public class OpentracingClientFilter implements ClientRequestFilter, ClientRespo
 
     public static final String CLIENT_SPAN_SKIPPED_ID = OpentracingClientFilter.class.getName() + ".Skipped";
 
-    private OpentracingFilterHelper helper;
+    private final OpentracingFilterHelper helper;
 
     OpentracingClientFilter(OpentracingFilterHelper helper) {
-        setFilterHelper(helper);
-    }
-
-    void setFilterHelper(OpentracingFilterHelper helper) {
         this.helper = helper;
     }
 

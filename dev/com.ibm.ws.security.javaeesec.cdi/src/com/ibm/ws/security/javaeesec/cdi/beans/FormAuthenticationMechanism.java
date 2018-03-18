@@ -18,11 +18,9 @@ import javax.enterprise.inject.spi.CDI;
 import javax.security.auth.Subject;
 import javax.security.enterprise.AuthenticationException;
 import javax.security.enterprise.AuthenticationStatus;
-import javax.security.enterprise.authentication.mechanism.http.AuthenticationParameters;
 import javax.security.enterprise.authentication.mechanism.http.HttpAuthenticationMechanism;
 import javax.security.enterprise.authentication.mechanism.http.HttpMessageContext;
 import javax.security.enterprise.authentication.mechanism.http.LoginToContinue;
-import javax.security.enterprise.credential.Credential;
 import javax.security.enterprise.credential.UsernamePasswordCredential;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -30,7 +28,6 @@ import javax.servlet.http.HttpServletResponse;
 import com.ibm.websphere.ras.Tr;
 import com.ibm.websphere.ras.TraceComponent;
 import com.ibm.websphere.ras.annotation.Sensitive;
-import com.ibm.ws.security.javaeesec.JavaEESecConstants;
 
 @Default
 @ApplicationScoped
@@ -48,54 +45,39 @@ public class FormAuthenticationMechanism implements HttpAuthenticationMechanism 
 
         Subject clientSubject = httpMessageContext.getClientSubject();
         @SuppressWarnings("unchecked")
-        AuthenticationParameters authParams = httpMessageContext.getAuthParameters();
-        Credential cred = null;
+        HttpServletRequest req = httpMessageContext.getRequest();
+        HttpServletResponse rsp = httpMessageContext.getResponse();
+        String username = null;
+        String password = null;
+        // in order to preserve the post parameter, unless the target url is j_security_check, do not read
+        // j_username and j_password.
+        String uri = uri = req.getRequestURI();
+        if (uri.contains("/j_security_check")) {
+            username = req.getParameter("j_username");
+            password = req.getParameter("j_password");
+        }
         if (tc.isDebugEnabled()) {
-            Tr.debug(tc, "AuthenticationParameters : " + authParams);
+            Tr.debug(tc, "URI : " + uri + ", j_username : " + username);
         }
-        if (authParams != null) {
-            cred = authParams.getCredential();
-        }
-        if (cred != null) {
-            if (tc.isDebugEnabled()) {
-                Tr.debug(tc, "Credential is found.");
-            }
-            status = utils.handleAuthenticate(getCDI(), JavaEESecConstants.DEFAULT_REALM, cred, clientSubject, httpMessageContext);
-        } else {
-            HttpServletRequest req = httpMessageContext.getRequest();
-            HttpServletResponse rsp = httpMessageContext.getResponse();
-            String username = null;
-            String password = null;
-            // in order to preserve the post parameter, unless the target url is j_security_check, do not read
-            // j_username and j_password.
-            String uri = uri = req.getRequestURI();
-            if (uri.contains("/j_security_check")) {
-                username = req.getParameter("j_username");
-                password = req.getParameter("j_password");
-            }
-            if (tc.isDebugEnabled()) {
-                Tr.debug(tc, "URI : " + uri + ", j_username : " + username);
-            }
 
-            if (httpMessageContext.isAuthenticationRequest()) {
-                if (username != null && password != null) {
-                    status = handleFormLogin(username, password, rsp, clientSubject, httpMessageContext);
+        if (httpMessageContext.isAuthenticationRequest()) {
+            if (username != null && password != null) {
+                status = handleFormLogin(username, password, rsp, clientSubject, httpMessageContext);
+            } else {
+                status = AuthenticationStatus.SEND_CONTINUE;
+            }
+        } else {
+            if (username == null || password == null) {
+                if (httpMessageContext.isProtected() == false) {
+                    if (tc.isDebugEnabled()) {
+                        Tr.debug(tc, "both isAuthenticationRequest and isProtected returns false. returing NOT_DONE,");
+                    }
+                    status = AuthenticationStatus.NOT_DONE;
                 } else {
                     status = AuthenticationStatus.SEND_CONTINUE;
                 }
             } else {
-                if (username == null || password == null) {
-                    if (httpMessageContext.isProtected() == false) {
-                        if (tc.isDebugEnabled()) {
-                            Tr.debug(tc, "both isAuthenticationRequest and isProtected returns false. returing NOT_DONE,");
-                        }
-                        status = AuthenticationStatus.NOT_DONE;
-                    } else {
-                        status = AuthenticationStatus.SEND_CONTINUE;
-                    }
-                } else {
-                    status = handleFormLogin(username, password, rsp, clientSubject, httpMessageContext);
-                }
+                status = handleFormLogin(username, password, rsp, clientSubject, httpMessageContext);
             }
         }
 
@@ -125,7 +107,7 @@ public class FormAuthenticationMechanism implements HttpAuthenticationMechanism 
         AuthenticationStatus status = AuthenticationStatus.SEND_FAILURE;
         int rspStatus = HttpServletResponse.SC_FORBIDDEN;
         UsernamePasswordCredential credential = new UsernamePasswordCredential(username, password);
-        status = utils.validateUserAndPassword(getCDI(), JavaEESecConstants.DEFAULT_REALM, clientSubject, credential, httpMessageContext);
+        status = utils.validateUserAndPassword(getCDI(), "defaultRealm", clientSubject, credential, httpMessageContext);
         if (status == AuthenticationStatus.SUCCESS) {
             httpMessageContext.getMessageInfo().getMap().put("javax.servlet.http.authType", "JASPI_AUTH");
             rspStatus = HttpServletResponse.SC_OK;

@@ -18,7 +18,6 @@ src: \
 	fat/src,\
 	test-applications/serviceApp/src, \
 	test-applications/jaxrsHelloWorld/src, \
-	test-applications/mpOpenTracing/src, \
 	test-bundles/opentracing.mock/src
 	
 -sub: *.bnd

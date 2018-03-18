@@ -23,8 +23,6 @@ import com.ibm.websphere.ras.TraceComponent;
 import com.ibm.ws.runtime.metadata.ComponentMetaData;
 import com.ibm.ws.security.javaeesec.CDIHelper;
 import com.ibm.ws.threadContext.ComponentMetaDataAccessorImpl;
-import com.ibm.ws.webcontainer.security.util.WebConfigUtils;
-import com.ibm.wsspi.webcontainer.metadata.WebModuleMetaData;
 
 public class ModulePropertiesUtils {
     private static final TraceComponent tc = Tr.register(ModulePropertiesUtils.class);
@@ -38,31 +36,21 @@ public class ModulePropertiesUtils {
     }
 
     public String getJ2EEModuleName() {
-        WebModuleMetaData wmmd = getWebModuleMetaData();
-        if (wmmd != null) {
-            return wmmd.getJ2EEName().getModule();
+        ComponentMetaData cmd = getComponentMetaData();
+        if (cmd != null) {
+            return cmd.getModuleMetaData().getJ2EEName().getModule();
         } else {
-            // this condition happens during processing postinvoke, fallback.
-            ComponentMetaData cmd = getComponentMetaData();
-            if (cmd != null) {
-                return cmd.getModuleMetaData().getJ2EEName().getModule();
-            }
+            return null;
         }
-        return null;
     }
 
     public String getJ2EEApplicationName() {
-        WebModuleMetaData wmmd = getWebModuleMetaData();
-        if (wmmd != null) {
-            return wmmd.getJ2EEName().getApplication();
+        ComponentMetaData cmd = getComponentMetaData();
+        if (cmd != null) {
+            return cmd.getJ2EEName().getApplication();
         } else {
-            // this condition happens during processing postinvoke, fallback.
-            ComponentMetaData cmd = getComponentMetaData();
-            if (cmd != null) {
-                return cmd.getJ2EEName().getApplication();
-            }
+            return null;
         }
-        return null;
     }
 
     public boolean isHttpAuthenticationMechanism() {
@@ -150,10 +138,6 @@ public class ModulePropertiesUtils {
     @SuppressWarnings("rawtypes")
     protected CDI getCDI() {
         return CDI.current();
-    }
-
-    protected WebModuleMetaData getWebModuleMetaData() {
-        return WebConfigUtils.getWebModuleMetaData();
     }
 
     protected ComponentMetaData getComponentMetaData() {

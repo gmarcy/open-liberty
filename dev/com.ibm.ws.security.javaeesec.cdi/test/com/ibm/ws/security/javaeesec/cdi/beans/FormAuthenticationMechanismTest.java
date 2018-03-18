@@ -30,14 +30,12 @@ import javax.security.auth.message.callback.PasswordValidationCallback;
 
 import javax.security.enterprise.AuthenticationException;
 import javax.security.enterprise.AuthenticationStatus;
-import javax.security.enterprise.authentication.mechanism.http.AuthenticationParameters;
 import javax.security.enterprise.authentication.mechanism.http.HttpMessageContext;
-import javax.security.enterprise.credential.BasicAuthenticationCredential;
-import javax.security.enterprise.credential.CallerOnlyCredential;
 import javax.security.enterprise.credential.Credential;
 import javax.security.enterprise.credential.UsernamePasswordCredential;
 import javax.security.enterprise.identitystore.IdentityStoreHandler;
 import javax.security.enterprise.identitystore.CredentialValidationResult;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -54,7 +52,6 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import test.common.SharedOutputManager;
-import com.ibm.ws.common.internal.encoder.Base64Coder;
 
 public class FormAuthenticationMechanismTest {
 
@@ -75,16 +72,11 @@ public class FormAuthenticationMechanismTest {
     private HttpServletResponse res;
     private Subject cs;
     private CallbackHandler ch;
-    private AuthenticationParameters ap;
     private final Map<String, String> mm = new HashMap<String, String>();
-    private CallerOnlyCredential coCred;
-    private BasicAuthenticationCredential baCred;
-    private UsernamePasswordCredential upCred, invalidUpCred;
-
+    
     private final String ISH_ID = "IdentityStore1";
     private final String USER1 = "user1";
     private final String PASSWORD1 = "s3cur1ty";
-    private final String INVALID_PASSWORD = "invalid";
  
 
     private static SharedOutputManager outputMgr = SharedOutputManager.getInstance().trace("com.ibm.ws.security.javaeesec.*=all");
@@ -115,7 +107,6 @@ public class FormAuthenticationMechanismTest {
     public void setUp() throws Exception {
         cdi = mockery.mock(CDI.class);
         iish = mockery.mock(Instance.class);
-        ap = mockery.mock(AuthenticationParameters.class);
         hmc = mockery.mock(HttpMessageContext.class);
         mi = mockery.mock(MessageInfo.class);
         req = mockery.mock(HttpServletRequest.class);
@@ -130,11 +121,6 @@ public class FormAuthenticationMechanismTest {
                 return cdi;
             }
         };
-
-        coCred = new CallerOnlyCredential(USER1);
-        upCred = new UsernamePasswordCredential(USER1, PASSWORD1);
-        invalidUpCred = new UsernamePasswordCredential(USER1, INVALID_PASSWORD);
-        baCred = new BasicAuthenticationCredential(Base64Coder.base64Encode(USER1+ ":" + PASSWORD1));
     }
 
     @After
@@ -302,41 +288,6 @@ public class FormAuthenticationMechanismTest {
         assertEquals("The result should be SEND_CONTINUE", AuthenticationStatus.SEND_CONTINUE, status);
     }
 
-    @Test
-    public void testValidateRequestNewAuthenticateBasicAuthCredSuccess() throws Exception {
-        IdentityStoreHandler mish = new MyIdentityStoreHandler();
-        withNewAuthenticate(baCred).withMessageInfo().withBeanInstance(mish);
-
-        AuthenticationStatus status = fam.validateRequest(req, res, hmc);
-        assertEquals("The result should be SUCCESS", AuthenticationStatus.SUCCESS, status);
-    }
-
-    @Test
-    public void testValidateRequestNewAuthenticateUsernamePasswordCredSuccess() throws Exception {
-        IdentityStoreHandler mish = new MyIdentityStoreHandler();
-        withNewAuthenticate(upCred).withMessageInfo().withBeanInstance(mish);
-
-        AuthenticationStatus status = fam.validateRequest(req, res, hmc);
-        assertEquals("The result should be SUCCESS", AuthenticationStatus.SUCCESS, status);
-    }
-
-    @Test
-    public void testValidateRequestNewAuthenticateInvalidUsernamePasswordCredFailure() throws Exception {
-        IdentityStoreHandler mish = new MyIdentityStoreHandler();
-        withNewAuthenticate(invalidUpCred).withBeanInstance(mish);
-
-        AuthenticationStatus status = fam.validateRequest(req, res, hmc);
-        assertEquals("The result should be SEND_FAILURE", AuthenticationStatus.SEND_FAILURE, status);
-    }
-
-    @Test
-    public void testValidateRequestNewAuthenticateInvalidCredentialFailure() throws Exception {
-        IdentityStoreHandler mish = new MyIdentityStoreHandler();
-        withNewAuthenticate(coCred).withBeanInstance(mish);
-
-        AuthenticationStatus status = fam.validateRequest(req, res, hmc);
-        assertEquals("The result should be SEND_FAILURE", AuthenticationStatus.SEND_FAILURE, status);
-    }
 
     /*************** support methods **************/
     @SuppressWarnings("unchecked")
@@ -364,8 +315,6 @@ public class FormAuthenticationMechanismTest {
             {
                 one(hmc).getClientSubject();
                 will(returnValue(cs));
-                one(hmc).getAuthParameters();
-                will(returnValue(null));
                 one(hmc).getRequest();
                 will(returnValue(req));
                 one(hmc).getResponse();
@@ -464,43 +413,6 @@ public class FormAuthenticationMechanismTest {
         return this;
     }
 
-    private FormAuthenticationMechanismTest withNewAuthenticate(Credential cred) {
-        setNewAuthenticateExpectations().withAuthParamsExpectations(ap).withCredentialExpectations(cred);
-        return this;
-    }
-
-    private FormAuthenticationMechanismTest setNewAuthenticateExpectations() {
-        mockery.checking(new Expectations() {
-            {
-                one(hmc).getClientSubject();
-                will(returnValue(cs));
-                never(hmc).getRequest();
-                never(hmc).getResponse();
-            }
-        });
-        return this;
-    }
-
-    private FormAuthenticationMechanismTest withAuthParamsExpectations(final AuthenticationParameters ap) {
-        mockery.checking(new Expectations() {
-            {
-                one(hmc).getAuthParameters();
-                will(returnValue(ap));
-            }
-        });
-        return this;
-    }
-
-    private FormAuthenticationMechanismTest withCredentialExpectations(final Credential cred) {
-        mockery.checking(new Expectations() {
-            {
-                allowing(ap).getCredential();
-                will(returnValue(cred));
-            }
-        });
-        return this;
-    }
-
     class MyCallbackHandler implements CallbackHandler {
         public void handle (Callback[] callbacks) {
             PasswordValidationCallback pwcb  = (PasswordValidationCallback)callbacks[0];
@@ -514,17 +426,8 @@ public class FormAuthenticationMechanismTest {
     class MyIdentityStoreHandler implements IdentityStoreHandler {
         public CredentialValidationResult validate(Credential cred) {
             CredentialValidationResult result = null;
-            String userid = null;
-            String password = null;
-            if (cred instanceof BasicAuthenticationCredential) {
-                userid = ((BasicAuthenticationCredential)cred).getCaller();
-                password = ((BasicAuthenticationCredential)cred).getPasswordAsString();
-            } else if (cred instanceof UsernamePasswordCredential) {
-                userid = ((UsernamePasswordCredential)cred).getCaller();
-                password = ((UsernamePasswordCredential)cred).getPasswordAsString();
-            } else if (cred instanceof CallerOnlyCredential) {
-                userid = ((CallerOnlyCredential)cred).getCaller();
-            } 
+            String userid = ((UsernamePasswordCredential)cred).getCaller();
+            String password = ((UsernamePasswordCredential)cred).getPasswordAsString();
             if(USER1.equals(userid) && PASSWORD1.equals(password)) {
                 result = new CredentialValidationResult(ISH_ID, USER1, USER1, USER1, new HashSet<String>());
             } else {

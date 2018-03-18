@@ -113,8 +113,9 @@ public class LoginToContinueInterceptor {
                 HttpServletRequest req = (HttpServletRequest) params[0];
                 HttpServletResponse res = (HttpServletResponse) params[1];
                 HttpMessageContext hmc = (HttpMessageContext) params[2];
-                if (!isNewAuth(hmc)) {
-                    Class hamClass = getClass(ic);
+                AuthenticationParameters authParams = hmc.getAuthParameters();
+                Class hamClass = getClass(ic);
+                if (!isNewAuth(authParams)) {
                     if (result.equals(AuthenticationStatus.SEND_CONTINUE)) {
                         // need to redirect.
                         result = gotoLoginPage(mpp.getAuthMechProperties(hamClass), req, res, hmc);
@@ -257,18 +258,16 @@ public class LoginToContinueInterceptor {
         if (loginPage != null && errorPage != null) {
             FormLoginConfiguration flc = new FormLoginConfigurationImpl(loginPage, errorPage);
             LoginConfiguration lc = new LoginConfigurationImpl(LoginConfiguration.FORM, null, flc);
-            SecurityMetadata smd = getSecurityMetadata();
-            if (smd != null) {
-                smd.setLoginConfiguration(lc);
-                if (tc.isDebugEnabled()) {
-                    Tr.debug(tc, "LoginConfiguration was updated. " + lc);
-                }
-            }
+            getSecurityMetadata().setLoginConfiguration(lc);
+            if (tc.isDebugEnabled())
+                Tr.debug(tc, "LoginConfiguration was updated. " + lc);
         }
     }
 
     protected SecurityMetadata getSecurityMetadata() {
-        return WebConfigUtils.getSecurityMetadata();
+        ComponentMetaData cmd = ComponentMetaDataAccessorImpl.getComponentMetaDataAccessor().getComponentMetaData();
+        WebModuleMetaData wmmd = (WebModuleMetaData) cmd.getModuleMetaData();
+        return (SecurityMetadata) wmmd.getSecurityMetaData();
     }
 
     protected void postLoginProcess(HttpServletRequest req, HttpServletResponse res, boolean isCustomForm) throws IOException, RuntimeException {
@@ -401,12 +400,12 @@ public class LoginToContinueInterceptor {
         return null;
     }
 
-    private boolean isNewAuth(HttpMessageContext hmc) {
-        AuthenticationParameters authParams = hmc.getAuthParameters();
+    private boolean isNewAuth(AuthenticationParameters authParams) {
+        boolean isNewAuth = false;
         if (authParams != null) {
-            return authParams.isNewAuthentication();
+            isNewAuth = authParams.isNewAuthentication();
         }
-        return false;
+        return isNewAuth;
     }
 
     @SuppressWarnings("rawtypes")

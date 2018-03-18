@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2013, 2018 IBM Corporation and others.
+ * Copyright (c) 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -88,34 +88,27 @@ public class WebProviderAuthenticatorProxy implements WebAuthenticator {
             WebAuthenticator jaspiAuthenticator = webAuthenticatorRef.getService("com.ibm.ws.security.jaspi");
             if (jaspiAuthenticator != null) {
                 if (props == null) { // Not processing form login creds
-                    boolean isNewAuth = ((JaspiService)jaspiAuthenticator).isProcessingNewAuthentication(webRequest.getHttpServletRequest());
                     // first see if we have an ltpa token (from form login)
-                    if (!isNewAuth) {
-                        authResult = handleSSO(webRequest, null);
-                    }
-                    if (isNewAuth || authResult.getStatus() == AuthResult.CONTINUE) { // no ltpatoken
+                    authResult = handleSSO(webRequest, null);
+                    if (authResult.getStatus() == AuthResult.CONTINUE) { // no ltpatoken
                         // JASPI session requires the subject from the previous invocation
                         // to be passed in to the JASPI provider on subsequent calls
                         authResult = handleSSO(webRequest, "jaspicSession");
-                        if (!isNewAuth && authResult.getStatus() == AuthResult.SUCCESS) {
+                        if (authResult.getStatus() == AuthResult.SUCCESS) {
                             Map<String, Object> requestProps = new HashMap<String, Object>();
                             requestProps.put("javax.servlet.http.registerSession.subject", authResult.getSubject());
                             webRequest.setProperties(requestProps);
                         }
                         authResult = jaspiAuthenticator.authenticate(webRequest);
                         if (authResult.getStatus() != AuthResult.CONTINUE) {
-                            if (!isNewAuth) {
-                                String authHeader = webRequest.getHttpServletRequest().getHeader("Authorization");
-                                if (authHeader != null && authHeader.startsWith("Basic ")) {
-                                    String basicAuthHeader = decodeCookieString(authHeader.substring(6));
-                                    int index = basicAuthHeader.indexOf(':');
-                                    String uid = basicAuthHeader.substring(0, index);
-                                    authResult.setAuditCredValue(uid);
-                                }
-                                authResult.setAuditCredType(AuditEvent.CRED_TYPE_JASPIC);
-                            } else {
-                                //TODO: is audit event required?? if so, how to get uid??
+                            String authHeader = webRequest.getHttpServletRequest().getHeader("Authorization");
+                            if (authHeader != null && authHeader.startsWith("Basic ")) {
+                                String basicAuthHeader = decodeCookieString(authHeader.substring(6));
+                                int index = basicAuthHeader.indexOf(':');
+                                String uid = basicAuthHeader.substring(0, index);
+                                authResult.setAuditCredValue(uid);
                             }
+                            authResult.setAuditCredType(AuditEvent.CRED_TYPE_JASPIC);
                         }
                     }
                 } else { // Processing form login creds

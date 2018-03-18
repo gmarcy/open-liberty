@@ -59,16 +59,7 @@ public class FrameRstStream extends Frame {
         // +---------------------------------------------------------------+
         // |                        Error Code (32)                        |
         // +---------------------------------------------------------------+
-
-        if (payloadLength == 4) {
-            errorCode = frp.grabNext32BitInt();
-        } else {
-            for (int i = 0; i < payloadLength; i++) {
-                frp.grabNextByte();
-            }
-            FrameSizeException e = new FrameSizeException("RST_STREAM frame payload must have a length of 4 octets");
-            throw e;
-        }
+        errorCode = frp.grabNext32BitInt();
     }
 
     @Override
@@ -98,10 +89,6 @@ public class FrameRstStream extends Frame {
     protected void setFlags() {
         // No flags defined
 
-    }
-
-    public void setErrorCode(int code) {
-        errorCode = code;
     }
 
     public int getErrorCode() {

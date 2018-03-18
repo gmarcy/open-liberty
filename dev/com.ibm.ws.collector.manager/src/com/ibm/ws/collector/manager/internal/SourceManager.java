@@ -109,20 +109,16 @@ public class SourceManager {
         bufferMgr.removeHandler(handlerId);
 
         if (subscribers.isEmpty()) {
-
+            //Last subscriber, unassign the buffer
+            //Inform the source that buffer will no longer be available
+            //and it should stop sending events to this buffer.
+            source.unsetBufferManager(bufferMgr);
             /*
-             * Can not set bufferMgr to null (in here or in the source )if this SrcMgr belongs
+             * Temporary Fix, can not set bufferMgr to null if this SrcMgr belongs
              * to LogSource or TraceSource
              */
-            if (!sourceId.contains(CollectorConstants.MESSAGES_SOURCE) && !sourceId.contains(CollectorConstants.TRACE_SOURCE)) {
-                /*
-                 * Last subscriber, unassign the buffer
-                 * Inform the source that buffer will no longer be available
-                 * and it should stop sending events to this buffer.
-                 */
-                source.unsetBufferManager(bufferMgr);
+            if (!sourceId.contains(CollectorConstants.MESSAGES_SOURCE) && !sourceId.contains(CollectorConstants.TRACE_SOURCE))
                 bufferMgr = null;
-            }
             return true;
         }
         return false;

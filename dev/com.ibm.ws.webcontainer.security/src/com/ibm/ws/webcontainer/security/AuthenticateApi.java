@@ -422,36 +422,12 @@ public class AuthenticateApi {
      * @param authResult
      */
     public void postProgrammaticAuthenticate(HttpServletRequest req, HttpServletResponse resp, AuthenticationResult authResult) {
-        postProgrammaticAuthenticate(req, resp, authResult, false, true);
-    }
-
-    /**
-     * This method set the caller and invocation subject and call the addSsoCookiesToResponse
-     *
-     * @param req
-     * @param resp
-     * @param authResult
-     */
-    public void postProgrammaticAuthenticate(HttpServletRequest req, HttpServletResponse resp, AuthenticationResult authResult, boolean alwaysSetCallerSubject) {
-        postProgrammaticAuthenticate(req, resp, authResult, alwaysSetCallerSubject, true);
-    }
-
-    /**
-     * This method set the caller and invocation subject and call the addSsoCookiesToResponse
-     *
-     * @param req
-     * @param resp
-     * @param authResult
-     */
-    public void postProgrammaticAuthenticate(HttpServletRequest req, HttpServletResponse resp, AuthenticationResult authResult, boolean alwaysSetCallerSubject, boolean addSSOCookie) {
         Subject subject = authResult.getSubject();
-        if (alwaysSetCallerSubject || new SubjectHelper().isUnauthenticated(subjectManager.getCallerSubject())) {
+        if (new SubjectHelper().isUnauthenticated(subjectManager.getCallerSubject())) {
             subjectManager.setCallerSubject(subject);
         }
         subjectManager.setInvocationSubject(subject);
-        if (addSSOCookie) {
-            ssoCookieHelper.addSSOCookiesToResponse(subject, req, resp);
-        }
+        ssoCookieHelper.addSSOCookiesToResponse(subject, req, resp);
     }
 
     /**

@@ -132,16 +132,10 @@ public class H2InboundLink extends HttpInboundLink {
     private boolean oneTimeEntry = false;
 
     public boolean isContinuationExpected() {
-        if (TraceComponent.isAnyTracingEnabled() && tc.isDebugEnabled()) {
-            Tr.debug(tc, "isContinuationExpected: " + continuationFrameExpected);
-        }
         return continuationFrameExpected;
     }
 
     public void setContinuationExpected(boolean expected) {
-        if (TraceComponent.isAnyTracingEnabled() && tc.isDebugEnabled()) {
-            Tr.debug(tc, "setContinuationExpected: " + expected);
-        }
         this.continuationFrameExpected = expected;
     }
 
@@ -332,11 +326,6 @@ public class H2InboundLink extends HttpInboundLink {
         streamTable.put(streamID, streamProcessor);
         highestClientStreamId = streamID;
 
-        // add stream 0 to the table, in case we need to write out any control frames prior to initialization completion
-        streamID = 0;
-        streamProcessor = new H2StreamProcessor(streamID, wrap, this, StreamState.OPEN);
-        streamTable.put(streamID, streamProcessor);
-
         // pull the settings header out of the request;
         // process it and apply it to the stream
         String settings = headers.get("HTTP2-Settings");
@@ -345,7 +334,7 @@ public class H2InboundLink extends HttpInboundLink {
                 Tr.debug(tc, "handleHTTP2UpgradeRequest, processing upgrade header settings : " + settings);
             }
             getConnectionSettings().processUpgradeHeaderSettings(settings);
-        } catch (Http2Exception e1) {
+        } catch (ProtocolException e1) {
             if (TraceComponent.isAnyTracingEnabled() && tc.isDebugEnabled()) {
                 Tr.debug(tc, "handleHTTP2UpgradeRequest an error occurred processing the settings during connection initialization");
             }
@@ -843,7 +832,7 @@ public class H2InboundLink extends HttpInboundLink {
                 Tr.debug(tc, "HttpDispatcherLink found: " + hdLink);
             }
             try {
-                hdLink.close(initialVC, exceptionForCloseFromHere);
+                hdLink.close(initialVC, null);
             } catch (Exception consume) {
                 if (TraceComponent.isAnyTracingEnabled() && tc.isDebugEnabled()) {
                     Tr.debug(tc, "closeConnectionLink: consuming exception: " + consume);

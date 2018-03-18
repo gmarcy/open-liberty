@@ -20,7 +20,6 @@ import com.ibm.ws.http.channel.h2internal.exceptions.FrameSizeException;
 import com.ibm.ws.http.channel.h2internal.exceptions.Http2Exception;
 import com.ibm.ws.http.channel.h2internal.exceptions.ProtocolException;
 import com.ibm.ws.http.channel.h2internal.frames.Frame;
-import com.ibm.ws.http.channel.h2internal.frames.Frame.FrameDirection;
 import com.ibm.ws.http.channel.h2internal.frames.FrameFactory;
 import com.ibm.ws.http.channel.h2internal.frames.FrameRstStream;
 import com.ibm.ws.http.channel.internal.HttpMessages;
@@ -67,7 +66,7 @@ public class FrameReadProcessor {
         boolean frameSizeError = false;
         try {
             currentFrame.processPayload(this);
-        } catch (Http2Exception e) {
+        } catch (FrameSizeException e) {
             // If we get an error here, it should be safe to assume that this frame doesn't have the expected byte count,
             // which must be treated as an error of type FRAME_SIZE_ERROR.  If we're processing a DATA or PRIORITY frame, then
             // we can treat the error as a stream error rather than a connection error.
@@ -100,8 +99,7 @@ public class FrameReadProcessor {
         }
 
         if (frameSizeError) {
-            currentFrame = new FrameRstStream(streamId, 4, (byte) 0, false, FrameDirection.READ);
-            ((FrameRstStream) currentFrame).setErrorCode(Constants.FRAME_SIZE_ERROR);
+            currentFrame = new FrameRstStream(streamId, Constants.FRAME_SIZE_ERROR, false);
         }
         if (stream == null) {
             stream = startNewInboundSession(streamId);

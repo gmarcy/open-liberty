@@ -39,7 +39,6 @@ public class SpringBootThinUtil {
     private final JarFile sourceFatJar;
     private final File targetThinJar;
     private final File libIndexCache;
-    private final File libIndexCacheParent;
     private final boolean putLibCacheInDirectory;
     private final String springBootLibPath;
     private final List<String> libEntries = new ArrayList<>();
@@ -47,14 +46,9 @@ public class SpringBootThinUtil {
     public static final String SPRING_LIB_INDEX_FILE = "META-INF/spring.lib.index";
 
     public SpringBootThinUtil(File sourceFatJar, File targetThinJar, File libIndexCache, boolean putLibCacheInDirectory) throws IOException {
-        this(sourceFatJar, targetThinJar, libIndexCache, null, putLibCacheInDirectory);
-    }
-
-    public SpringBootThinUtil(File sourceFatJar, File targetThinJar, File libIndexCache, File libIndexCacheParent, boolean putLibCacheInDirectory) throws IOException {
         this.sourceFatJar = new JarFile(sourceFatJar);
         this.targetThinJar = targetThinJar;
         this.libIndexCache = libIndexCache;
-        this.libIndexCacheParent = libIndexCacheParent;
         this.putLibCacheInDirectory = putLibCacheInDirectory;
         String springBootLibPath = new SpringBootManifest(this.sourceFatJar.getManifest()).getSpringBootLib();
         if (!springBootLibPath.endsWith("/")) {
@@ -71,10 +65,9 @@ public class SpringBootThinUtil {
         try (JarOutputStream thinJar = new JarOutputStream(new FileOutputStream(targetThinJar), sourceFatJar.getManifest());
                         ZipOutputStream libZip = putLibCacheInDirectory ? null : new ZipOutputStream(new FileOutputStream(libIndexCache))) {
 
-            Set<String> entryNames = new HashSet<>();
             for (Enumeration<JarEntry> entries = sourceFatJar.entries(); entries.hasMoreElements();) {
                 JarEntry entry = entries.nextElement();
-                if (entryNames.add(entry.getName()) && !JarFile.MANIFEST_NAME.equals(entry.getName()) && !entry.getName().startsWith("org")) { // hack to omit spring boot loader
+                if (!JarFile.MANIFEST_NAME.equals(entry.getName()) && !entry.getName().startsWith("org")) { // hack to omit spring boot loader
                     storeEntry(thinJar, libZip, entry);
                 }
             }
@@ -129,9 +122,6 @@ public class SpringBootThinUtil {
     }
 
     private void storeLibraryInZip(ZipOutputStream libZip, JarEntry entry, String hashPrefix, String hashSuffix) throws IOException, NoSuchAlgorithmException {
-        // Note that for the in zip case we always store the library
-        // without checking the parent.  This is because we want to
-        // create a complete cache that may have no parent.
         String path = entry.getName();
         try (InputStream is = sourceFatJar.getInputStream(entry)) {
             if (!hashPrefixes.contains(hashPrefix)) {
@@ -145,39 +135,20 @@ public class SpringBootThinUtil {
     }
 
     private void storeLibraryInDir(JarEntry entry, String hashPrefix, String hashSuffix) throws IOException, NoSuchAlgorithmException {
-        String hashPath = hashPrefix + '/' + hashSuffix;
-        String libName = entry.getName();
-        int lastSlash = libName.lastIndexOf('/');
-        if (lastSlash >= 0) {
-            libName = libName.substring(lastSlash + 1);
-        }
-
-        if (libIndexCacheParent != null) {
-            // if there is a parent cache look to see if the lib name exists there
-            File libDirParent = new File(libIndexCacheParent, hashPath);
-            File libFileParent = new File(libDirParent, libName);
-            if (libFileParent.exists()) {
-                // no need to store since the lib exists in the parent cache
-                return;
-            }
-        }
-
         if (!libIndexCache.exists()) {
             libIndexCache.mkdirs();
         }
+        File libDir = new File(libIndexCache, hashPrefix);
+        if (!libDir.exists()) {
+            libDir.mkdirs();
+        }
+        File libFile = new File(libDir, hashSuffix + ".jar");
+        InputStream is = sourceFatJar.getInputStream(entry);
 
-        File libDir = new File(libIndexCache, hashPath);
-        File libFile = new File(libDir, libName);
-        if (!libFile.exists()) {
-            if (!libDir.exists()) {
-                libDir.mkdirs();
-            }
-            InputStream is = sourceFatJar.getInputStream(entry);
-            try (OutputStream libJar = new FileOutputStream(libFile)) {
-                copyStream(is, libJar);
-            } finally {
-                is.close();
-            }
+        try (OutputStream libJar = new FileOutputStream(libFile)) {
+            copyStream(is, libJar);
+        } finally {
+            is.close();
         }
     }
 

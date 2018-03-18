@@ -13,7 +13,6 @@ package com.ibm.ws.microprofile.faulttolerance_fat.tx.beans;
 import java.util.Set;
 
 import javax.enterprise.context.RequestScoped;
-import javax.transaction.Transactional;
 
 import org.eclipse.microprofile.faulttolerance.Retry;
 
@@ -32,8 +31,14 @@ public class RetryBeanB extends RetryBeanA {
     private int connectCount = 0;
     private int disconnectCount = 0;
 
+    /*
+     * The @FTTransactional annotation on this method is a naive imitation of the
+     * standard @Transactional. It provides rudimentary transactionality through an
+     * interceptor which has a lower priority than the fault tolerance interceptor.
+     * All retries of this method will therefore occur within their own transaction.
+     */
     @Retry
-    @Transactional
+    @FTTransactional
     public Connection connectB(Set<Long> txns) throws ConnectException {
         final long tx = UOWManagerFactory.getUOWManager().getLocalUOWId();
         txns.add(tx);

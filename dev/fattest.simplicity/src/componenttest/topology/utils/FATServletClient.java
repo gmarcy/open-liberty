@@ -145,10 +145,6 @@ public class FATServletClient {
      * @return the path and query (e.g., {@code "/test?testMethod=test"})
      */
     public static String getPathAndQuery(String path, String testName) {
-        if (!path.contains("?")) {
-            return '/' + path + '?' + FATServletClient.TEST_METHOD + '=' + testName;
-        } else {
-            return '/' + path + '&' + FATServletClient.TEST_METHOD + '=' + testName;
-        }
+        return '/' + path + '?' + FATServletClient.TEST_METHOD + '=' + testName;
     }
 }
