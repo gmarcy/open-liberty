@@ -1,0 +1,15 @@
+
+-include= ~../cnf/resources/bnd/bundle.props
+bVersion=1.0
+
+Bundle-Name: Liberty bnd plugins
+Bundle-SymbolicName: wlp-bndPlugins
+Bundle-Description: Unshipped bundle that houses bnd plugins for use during build
+
+Private-Package: com.ibm.ws.build.bnd.plugins
+
+bnd.project: false
+
+-buildpath: \
+	biz.aQute.bnd:biz.aQute.bnd;version=3.5.0,\
+	org.apache.aries:org.apache.aries.util;version=1.1.3
