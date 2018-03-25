@@ -175,7 +175,6 @@ task publishLibNative(type: Copy) {
 }
 
 assemble {
-  dependsOn ':cnf:copyMavenLibs'
   dependsOn publishWLPJars
   dependsOn publishJavadoc
   dependsOn publishToolJars
@@ -206,9 +205,8 @@ compileJava {
 }
 
 task globalize {
-    dependsOn ':cnf:copyMavenLibs'
-    enabled parseBoolean(bnd('globalize', 'true'))
-    ext.destinationDir = new File(buildDir, "src/${name}/java")
+  ext.destinationDir = new File(buildDir, "src/${name}/java")
+  if (parseBoolean(bnd('globalize', 'true'))) {
     inputs.files(fileTree(dir: project.file('resources'), include: '**/*.nlsprops')).skipWhenEmpty()
     outputs.dir destinationDir
     doFirst {
@@ -308,6 +306,7 @@ task globalize {
         tmstransformer(dest: rootProject.file("build.pii.package/nlsxml/${project.name}"))
       }
     }
+  }
 }
 
 task copyPiiFiles(type: Copy) {
@@ -332,7 +331,9 @@ sourceSets {
 }
 
 compileJava {
-  dependsOn globalize
+  if (parseBoolean(bnd('globalize', 'true'))) {
+    dependsOn globalize
+  }
   options.warnings = false
   options.fork = true
 }
@@ -423,8 +424,4 @@ jacocoTestCoverageVerification {
       }
     }
   }
-}
-
-private boolean parseBoolean(String value) {
-  return 'on'.equalsIgnoreCase(value) || 'true'.equalsIgnoreCase(value)
 }
