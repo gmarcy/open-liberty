@@ -175,7 +175,6 @@ task publishLibNative(type: Copy) {
 }
 
 assemble {
-  dependsOn ':cnf:copyMavenLibs'
   dependsOn publishWLPJars
   dependsOn publishJavadoc
   dependsOn publishToolJars
@@ -189,13 +188,14 @@ assemble {
 
 compileJava {
   if (!parseBoolean(bnd('instrument.disabled', 'false'))) {
+    dependsOn ':wlp-rasInstrumentation:jar'
     def instrument = fileTree( dir: compileJava.destinationDir, include: bnd('instrument.classesIncludes'), exclude: bnd('instrument.classesExcludes') )
     doLast {
       if (instrument.isEmpty())
         return
       ant.taskdef(name: 'instrumentForTrace', classname: 'com.ibm.ws.ras.instrument.internal.buildtasks.InstrumentForTrace') {
         classpath {
-            fileset(dir: cnf.file('lib'), includes: "ras-instrumentation.jar")
+            fileset(dir: project(':wlp-rasInstrumentation').buildDir, includes: "wlp-rasInstrumentation.jar")
         }
       }
       ant.instrumentForTrace( ffdc: bnd('instrument.ffdc'), taskInjection: bnd('instrument.taskInjection') ) {
@@ -206,9 +206,8 @@ compileJava {
 }
 
 task globalize {
-    dependsOn ':cnf:copyMavenLibs'
-    enabled parseBoolean(bnd('globalize', 'true'))
-    ext.destinationDir = new File(buildDir, "src/${name}/java")
+  ext.destinationDir = new File(buildDir, "src/${name}/java")
+  if (parseBoolean(bnd('globalize', 'true'))) {
     inputs.files(fileTree(dir: project.file('resources'), include: '**/*.nlsprops')).skipWhenEmpty()
     outputs.dir destinationDir
     doFirst {
@@ -308,6 +307,7 @@ task globalize {
         tmstransformer(dest: rootProject.file("build.pii.package/nlsxml/${project.name}"))
       }
     }
+  }
 }
 
 task copyPiiFiles(type: Copy) {
@@ -332,7 +332,9 @@ sourceSets {
 }
 
 compileJava {
-  dependsOn globalize
+  if (parseBoolean(bnd('globalize', 'true'))) {
+    dependsOn globalize
+  }
   options.warnings = false
   options.fork = true
 }
@@ -423,8 +425,4 @@ jacocoTestCoverageVerification {
       }
     }
   }
-}
-
-private boolean parseBoolean(String value) {
-  return 'on'.equalsIgnoreCase(value) || 'true'.equalsIgnoreCase(value)
 }

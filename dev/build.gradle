@@ -25,8 +25,8 @@ subprojects {
   if (bndProject != null) {
     plugins.apply 'biz.aQute.bnd'
   } else {
-    task release { }
     task publish { }
+    task release { }
     task releaseNeeded { dependsOn release }
     task copyPiiFiles { }
   }
