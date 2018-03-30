@@ -1,0 +1,32 @@
+
+rootProject.ext.instrumentForTraceInputFiles = { tasks.getByPath(':wlp-rasInstrumentation:jar') }
+rootProject.ext.instrumentForTraceTaskdef = {
+    ant.taskdef(name: 'instrumentForTrace', classname: 'com.ibm.ws.ras.instrument.internal.buildtasks.InstrumentForTrace',
+                classpath: rootProject.project(':wlp-rasInstrumentation').configurations.archives.artifacts.files.asPath)
+}
+rootProject.ext.instrumentForTrace = { ffdc, taskInjection -> ant.instrumentForTrace(ffdc, taskInjection) }
+
+rootProject.ext.nlsTaskdef = {
+    ant.taskdef(resource: 'com/ibm/mantis/nls/antlib.xml') {
+        classpath {
+            fileset(dir: cnf.file('mavenlibs'), includes: "commons-*.jar")
+            fileset(dir: cnf.file('mavenlibs'), includes: "mantis-*.jar")
+        }
+    }
+}
+rootProject.ext.nlsValidate = { ant.validate() }
+rootProject.ext.nlsNormalize = { dest, defaultencoding -> ant.normalize(dest, defaultencoding) }
+rootProject.ext.nlsCommonize = { dest, commonmessagefile -> ant.commonize(dest, commonmessagefile) }
+rootProject.ext.nlsTransform = { ant.transform() }
+
+rootProject.ext.portSelectorTaskdef = {
+    ant.taskdef(name: 'portSelector', classname: 'com.ibm.aries.buildtasks.PortSelector') {
+        classpath {
+            fileset(dir: cnf.file('mavenlibs'), includes: "infra.buildtasks*.jar")
+        }
+    }
+}
+rootProject.ext.portSelector = { engineName, location -> 
+    ant.portSelector(engineName, location, jvmarg: 'jvmargPorts')
+    ant.jvmargPorts
+}

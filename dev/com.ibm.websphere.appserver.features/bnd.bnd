@@ -12,8 +12,6 @@
 
 -nobundles: true
 
-src: visibility/auto, visibility/private, visibility/protected, visibility/public
-
 instrument.disabled: true
 
 feature.project: true

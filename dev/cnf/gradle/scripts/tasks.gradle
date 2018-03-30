@@ -188,17 +188,13 @@ assemble {
 
 compileJava {
   if (!parseBoolean(bnd('instrument.disabled', 'false'))) {
-    dependsOn ':wlp-rasInstrumentation:jar'
+    inputs.files { instrumentForTraceInputFiles() }
     def instrument = fileTree( dir: compileJava.destinationDir, include: bnd('instrument.classesIncludes'), exclude: bnd('instrument.classesExcludes') )
     doLast {
       if (instrument.isEmpty())
         return
-      ant.taskdef(name: 'instrumentForTrace', classname: 'com.ibm.ws.ras.instrument.internal.buildtasks.InstrumentForTrace') {
-        classpath {
-            fileset(dir: project(':wlp-rasInstrumentation').buildDir, includes: "wlp-rasInstrumentation.jar")
-        }
-      }
-      ant.instrumentForTrace( ffdc: bnd('instrument.ffdc'), taskInjection: bnd('instrument.taskInjection') ) {
+      instrumentForTraceTaskdef()
+      instrumentForTrace(ffdc: bnd('instrument.ffdc'), taskInjection: bnd('instrument.taskInjection')) {
           fileset(dir: compileJava.destinationDir, includes: bnd('instrument.classesIncludes'), excludes: bnd('instrument.classesExcludes'))
       }
     }
@@ -219,13 +215,8 @@ task globalize {
         into destinationDir
         include '**/package-info.java'
       }
-      ant.taskdef(resource: 'com/ibm/mantis/nls/antlib.xml') {
-        classpath {
-            fileset(dir: cnf.file('mavenlibs'), includes: "commons-*.jar")
-            fileset(dir: cnf.file('mavenlibs'), includes: "mantis-*.jar")
-        }
-      }
-      ant.validate() {
+      nlsTaskdef()
+      nlsValidate() {
         fileset(dir: project.file('resources'), includes: "**/*.nlsprops", excludes: "**/*_*.nlsprops")
         completenessvalidator(messagesonly: "false")
         duplicatekeyvalidator()
@@ -245,15 +236,15 @@ task globalize {
         contentvalidator(constraint: "disallowed", pattern: "\\b((WAS)|(TAM)|(WIM)|(WPS)|(eWAS)|(LUW)|(ND)|(MQSeries))\\b", loglevel: "warning", message: "product acronyms are disallowed")
         contentvalidator(constraint: "disallowed", pattern: "([A-Z0-9]{4,5})(\\d{4})([IWE]):\\S", loglevel: "error", message: "malformed message")
       }
-      ant.normalize(dest: new File(project.buildDir, 'nlsbuild/normalized'), defaultencoding: "ISO-8859-1") {
+      nlsNormalize(dest: new File(project.buildDir, 'nlsbuild/normalized'), defaultencoding: "ISO-8859-1") {
         fileset(dir: project.file('resources'), includes: "**/*.nlsprops")
         encodingtable(encodings: cnf.file('resources/EncodingTable.properties'))
         globmapper(from: "*.nlsprops", to: "*.normalized")
       }
-      ant.commonize(dest: new File(project.buildDir, 'nlsbuild/normalized'), commonmessagefile: cnf.file('resources/nls/commonmessages.properties')) {
+      nlsCommonize(dest: new File(project.buildDir, 'nlsbuild/normalized'), commonmessagefile: cnf.file('resources/nls/commonmessages.properties')) {
         fileset(dir: new File(project.buildDir, 'nlsbuild/normalized'), includes: "**/*.normalized")
       }
-      ant.transform() {
+      nlsTransform() {
         fileset(dir: new File(project.buildDir, 'nlsbuild/normalized'), includes: "**/*.normalized")
         javatransformer(dest: destinationDir) {
           keyfilter {
@@ -277,7 +268,7 @@ task globalize {
         rename '(.*).nlsprops', '$1' + "_en.nlsprops"
       }
       // Existing languages first
-      ant.normalize(dest: new File(project.buildDir, 'nlsbuild/normalizedxml'), defaultencoding: "ISO-8859-1") {
+      nlsNormalize(dest: new File(project.buildDir, 'nlsbuild/normalizedxml'), defaultencoding: "ISO-8859-1") {
         fileset(dir: project.file('resources')) {
           include(name: "**/*.nlsprops")
         }
@@ -285,7 +276,7 @@ task globalize {
         globmapper(from: "*.nlsprops", to: "*.normalized")
       }
       // And now english
-      ant.normalize(dest: new File(project.buildDir, 'nlsbuild/normalizedxml'), defaultencoding: "ISO-8859-1") {
+      nlsNormalize(dest: new File(project.buildDir, 'nlsbuild/normalizedxml'), defaultencoding: "ISO-8859-1") {
         fileset(dir: nlsbuildtemp) {
           include(name: "**/*_en.nlsprops")
         }
@@ -293,7 +284,7 @@ task globalize {
         globmapper(from: "*.nlsprops", to: "*.normalized")
       }
 
-      ant.commonize(dest: new File(project.buildDir, 'nlsbuild/normalizedxml'), commonmessagefile: cnf.file('resources/nls/commonmessages.properties')) {
+      nlsCommonize(dest: new File(project.buildDir, 'nlsbuild/normalizedxml'), commonmessagefile: cnf.file('resources/nls/commonmessages.properties')) {
         fileset(dir: new File(project.buildDir, 'nlsbuild/normalizedxml'), includes: "**/*.normalized")
         globmapper(from: "*.normalized", to: "*.commonized")
       }
@@ -302,7 +293,7 @@ task globalize {
       // They are used and packaged by the build.pii.package project.
       // So instead of generating these files to the local project and doing a copy, directly generate the
       // files into the build.pii.package project.
-      ant.transform() {
+      nlsTransform() {
         fileset(dir: new File(project.buildDir, 'nlsbuild/normalizedxml'), includes: "**/*.commonized")
         tmstransformer(dest: rootProject.file("build.pii.package/nlsxml/${project.name}"))
       }
@@ -353,14 +344,9 @@ test {
   doFirst {
     if (testports.isEmpty())
       return
-    ant.taskdef(name: 'portSelector', classname: 'com.ibm.aries.buildtasks.PortSelector') {
-      classpath {
-        fileset(dir: cnf.file('mavenlibs'), includes: "infra.buildtasks*.jar")
-      }
-    }
     def propertiesFile = new File(compileTestJava.destinationDir, 'unittestports.properties')
-    ant.portSelector(engineName: "${bnd.buildEngineName}", location: propertiesFile, jvmarg: 'jvmargPorts')
-    jvmArgs ant.jvmargPorts.tokenize()
+    portSelectorTaskdef()
+    jvmArgs portSelector(engineName: "${bnd.buildEngineName}", location: propertiesFile).tokenize()
   }
   afterSuite { desc, result ->
     if (!desc.parent) { // will match the outermost suite

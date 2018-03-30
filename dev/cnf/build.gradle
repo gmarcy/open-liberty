@@ -331,7 +331,7 @@ task zipGradleBootstrap(type: Zip) {
     }
     from new File(project.buildDir, 'replacements')
     into 'com.ibm.websphere.features.internal.openliberty', {
-        from rootProject.fileTree(dir: 'com.ibm.websphere.appserver.features', include: '**/*.feature').collect {
+        from rootProject.fileTree(dir: 'com.ibm.websphere.appserver.features', include: 'visibility/**/*.feature').collect {
             if (!it.isDirectory()) {
                 it
             }

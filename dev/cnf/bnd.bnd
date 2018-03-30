@@ -16,4 +16,5 @@ instrument.disabled: true
 
 -dependson: \
   build.image, \
-  wlp-bndPlugins
+  wlp-bndPlugins, \
+  wlp-rasInstrumentation

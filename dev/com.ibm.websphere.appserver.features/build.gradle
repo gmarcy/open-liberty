@@ -50,7 +50,7 @@ def getFeatureMap = {
         Set<String> featuresGa = new TreeSet()
         Set<String> featuresBeta = new TreeSet()
         Set<String> publicFeatures = new TreeSet()
-        project(':com.ibm.websphere.appserver.features').fileTree(dir: '.', include: '**/*.feature').each { featureFile ->
+        project(':com.ibm.websphere.appserver.features').fileTree(dir: '.', include: 'visibility/**/*.feature').each { featureFile ->
             Properties featureProps = new Properties()
             featureFile.withInputStream { featureProps.load(it) }
             map.put(featureProps['symbolicName'], featureProps)
@@ -218,7 +218,7 @@ dependencies {
 task publishFeatureResources {
   dependsOn parent.subprojects.assemble
 
-  def featureFiles = fileTree(dir: project.projectDir, include: '**/*.feature')
+  def featureFiles = fileTree(dir: project.projectDir, include: 'visibility/**/*.feature')
   inputs.files(featureFiles).skipWhenEmpty()
   outputs.dir buildImage.file('wlp/lib/features')
   outputs.dir new File(project.buildDir, 'repo')
@@ -354,7 +354,7 @@ publish.dependsOn generateMavenArtifact
 
 def featuresToPublish() {
   def features = []
-  fileTree(dir: project.projectDir, include: '**/*.feature').each {
+  fileTree(dir: project.projectDir, include: 'visibility/**/*.feature').each {
     Properties props = new Properties()
     props.load(new FileInputStream(it))
     features.add(props['symbolicName'])
