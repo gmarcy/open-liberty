@@ -12,10 +12,17 @@
 
 -nobundles: true
 
-src: visibility/auto, visibility/private, visibility/protected, visibility/public
-
 instrument.disabled: true
 
 feature.project: true
 
 copy.pii: false
+
+-dependson: \
+	com.ibm.ws.repository.generator;version=latest, \
+	wlp-bndPlugins;version=latest, \
+	wlp-featureTasks;version=latest, \
+	wlp-generateChecksums;version=latest, \
+	wlp-generateRepositoryContent;version=latest, \
+	wlp-mavenRepoTasks;version=latest, \
+	wlp-metatypeValidator;version=latest

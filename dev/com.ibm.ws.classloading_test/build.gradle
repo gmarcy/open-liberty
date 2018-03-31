@@ -17,5 +17,7 @@ test {
         }
     }
 
+    println "jvmArgs -Dservlet.jar.location=${project(':com.ibm.websphere.javaee.servlet.3.1').configurations.archives.artifacts.files.asPath}"
+    println "jvmArgs -Dservlet.jar.location=${cnf.file('mavenlibs/servlet-3.1.jar')}"
     jvmArgs '-Dservlet.jar.location=' + cnf.file('mavenlibs/servlet-3.1.jar')
 }
