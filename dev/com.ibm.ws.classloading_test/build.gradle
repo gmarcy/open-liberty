@@ -11,6 +11,9 @@
 
 test {
     dependsOn ':cnf:copyMavenLibs'
+    dependsOn ':com.ibm.ws.classloading_test.jarA:jar'
+    dependsOn ':com.ibm.ws.classloading_test.jarB:jar'
+
     doFirst {
         ant.jar(destfile: new File(compileTestJava.destinationDir, 'test.jar'), manifest: project.file('test-resources/PackageDefineTestResources/MANIFEST.MF')) {
             fileset(dir: compileTestJava.destinationDir, includes: 'test/')

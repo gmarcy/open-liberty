@@ -109,7 +109,7 @@ mockito: org.mockito.mockito-core;version="[1.9,2)",\
   org.objenesis;version="[2.1,3)"
 
 build.bnd.plugins.classes: com.ibm.ws.build.bnd.plugins.ExternalPackageProcessor,com.ibm.ws.build.bnd.plugins.BundleManifestValidator
-build.bnd.plugins.path: ${workspace}/wlp-bndPlugins/build/libs/wlp-bndPlugins.jar,${workspace}/cnf/mavenlibs/org.apache.aries.util-1.1.3.jar
+build.bnd.plugins.path: ${repo;wlp-bndPlugins},${repo;org.apache.aries:org.apache.aries.util;1.1.3}
 
 instrument.disabled: ${if;${test.project};true;false}
 instrument.classesIncludes: **/*.class

@@ -9,14 +9,6 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 
-compileTestJava {
-    inputs.files { rasInstrumentationInputFiles() }
-    doLast {
-        rasInstrumentationTaskdef(ant)
-        ant.instrumentWithFFDC() {
-            fileset(dir: compileTestJava.destinationDir) {
-                include(name: '**/com/ibm/ws/ras/instrumentation/test/*.class')
-            }
-        }
-    }
+test {
+  dependsOn ':com.ibm.ws.config:assemble'
 }

@@ -188,12 +188,12 @@ assemble {
 
 compileJava {
   if (!parseBoolean(bnd('instrument.disabled', 'false'))) {
-    inputs.files { instrumentForTraceInputFiles() }
-    def instrument = fileTree( dir: compileJava.destinationDir, include: bnd('instrument.classesIncludes'), exclude: bnd('instrument.classesExcludes') )
+    inputs.files { rasInstrumentationInputFiles() }
+    def instrument = fileTree(dir: compileJava.destinationDir, include: bnd('instrument.classesIncludes'), exclude: bnd('instrument.classesExcludes'))
     doLast {
       if (instrument.isEmpty())
         return
-      instrumentForTraceTaskdef(ant)
+      rasInstrumentationTaskdef(ant)
       ant.instrumentForTrace(ffdc: bnd('instrument.ffdc'), taskInjection: bnd('instrument.taskInjection')) {
           fileset(dir: compileJava.destinationDir, includes: bnd('instrument.classesIncludes'), excludes: bnd('instrument.classesExcludes'))
       }

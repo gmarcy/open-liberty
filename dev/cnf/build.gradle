@@ -121,22 +121,19 @@ task createGradleBootstrap {
         println 'Generating gradle bootstrap'
 
         def depsList = []
-        rootProject.fileTree(dir: '.', include: '*').visit { element ->
-            if (element.isDirectory()) {
-                String relativePath = "$element.relativePath"
-                def bndProject = bndWorkspace.getProject(relativePath)
-                if (bndProject != null && !bndProject.isNoBundles()) {
-                    String org
-                    if ('true'.equals(bndProject.get('test.project', bndProject.get('fat.project', 'false')))) {
-                        org = 'test'
-                    } else {
-                        org = 'dev'
-                    }
-                    for (String bsn : bndProject.getBsns()) {
-                        String version = getVersionFromReleaseRepo(org, bsn)
-                        depsList.add('    compile \'' + org + ':' + bsn + ':' + version + '\'')
-                        depsList.add('    compile \'' + org + ':' + bsn + ':' + version + '@pom\'')
-                    }
+        gradleBndProjects.each { projectName ->
+            def bndProject = bndWorkspace.getProject(projectName)
+            if (!bndProject.isNoBundles()) {
+                String org
+                if ('true'.equals(bndProject.get('test.project', bndProject.get('fat.project', 'false')))) {
+                    org = 'test'
+                } else {
+                    org = 'dev'
+                }
+                for (String bsn : bndProject.getBsns()) {
+                    String version = getVersionFromReleaseRepo(org, bsn)
+                    depsList.add('    compile \'' + org + ':' + bsn + ':' + version + '\'')
+                    depsList.add('    compile \'' + org + ':' + bsn + ':' + version + '@pom\'')
                 }
             }
         }
@@ -153,10 +150,10 @@ task createGradleBootstrap {
                 depsList.add('    compile \'' + org + ':' + featureArtifactId + ':' + version + '@pom\'')
             }
         }
-        
-        depsList.add('    compile \'' +org+':openliberty-MavenArtifact:' + getVersionFromReleaseRepo("dev", "openliberty-MavenArtifact") + '@zip\'')
-        depsList.add('    compile \''+org+':openliberty-singleJson:' + getVersionFromReleaseRepo("dev", "openliberty-singleJson") + '@json\'')
-		
+
+        depsList.add('    compile \'' + org + ':openliberty-MavenArtifact:' + getVersionFromReleaseRepo('dev', 'openliberty-MavenArtifact') + '@zip\'')
+        depsList.add('    compile \'' + org + ':openliberty-singleJson:' + getVersionFromReleaseRepo('dev', 'openliberty-singleJson') + '@json\'')
+
         File dependenciesFile = new File(project.buildDir, 'dependencies.gradle')
         dependenciesFile.createNewFile()
         dependenciesFile.text = """dependencies {
@@ -193,15 +190,9 @@ task createGeneratedReplacementProjects {
     doLast {
         File templateDir = new File(projectDir, 'gradle/replacement.project.templates')
         def excludeList = []
-        rootProject.fileTree(dir: '.', include: '*').visit { element ->
-            if (!element.isDirectory()) {
-                return
-            }
-            String relativePath = "$element.relativePath"
-            def bndProject = bndWorkspace.getProject(relativePath)
-            if (bndProject == null) {
-                return
-            }
+        gradleBndProjects.each { projectName ->
+            def bndProject = bndWorkspace.getProject(projectName)
+            String relativePath = bndProject.getName()
             boolean testProject = 'true'.equals(bndProject.get('test.project', bndProject.get('fat.project', 'false')))
             boolean generateReplacement = 'true'.equals(bndProject.get('generate.replacement', testProject ? 'false' : 'true'))
             if (!generateReplacement) {
