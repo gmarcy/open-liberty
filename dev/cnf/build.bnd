@@ -78,7 +78,7 @@ javac.debug: true
 javac.encoding: UTF-8
 -sources: false
 
--pedantic: true
+-pedantic: ${if;${driver;gradle};true;false}
 -fixupmessages.javac17: "The .JRE container is set to JavaSE-1.8 but bnd is compiling against 1.7";is:=ignore
 -fixupmessages.nosrc: "bnd's src folder 'src' is not in the Eclipse build path";is:=ignore
 -fixupmessages.missingexport: "Used bundle version * for exported package";is:=error
