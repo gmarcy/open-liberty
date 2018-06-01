@@ -9,6 +9,10 @@
 #     IBM Corporation - initial API and implementation
 #*******************************************************************************
 
+
+repo.docGen.path: ${path;\
+    ${repo;wlp-docGen}}
+
 repo.rasInstrumentation.path: ${path;\
     ${repo;wlp-rasInstrumentation}}
 

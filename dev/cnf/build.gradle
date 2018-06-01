@@ -124,6 +124,16 @@ task everythingElseHasBeenReleased {
     dependsOn parent.subprojects.minus(project).release
 }
 
+task runDocGen {
+    dependsOn everythingElseHasBeenReleased
+    doLast {
+        println 'Generating documentation'
+
+        docGenTaskdef(ant)
+        ant.featuresToAdoc()
+    }
+}
+
 task createGradleBootstrap {
     dependsOn everythingElseHasBeenReleased
     doLast {

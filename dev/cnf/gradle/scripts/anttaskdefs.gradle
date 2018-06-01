@@ -9,6 +9,11 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 
+rootProject.ext.docGenTaskdef = { ant ->
+    ant.taskdef(resource: 'com/ibm/ws/wlp/docgen/default.properties',
+                classpath: bnd('repo.docGen.path'))
+}
+
 rootProject.ext.rasInstrumentationInputFiles = { tasks.getByPath(':wlp-rasInstrumentation:jar') }
 rootProject.ext.rasInstrumentationTaskdef = { ant ->
     ant.taskdef(name: 'instrumentForTrace', classname: 'com.ibm.ws.ras.instrument.internal.buildtasks.InstrumentForTrace',
