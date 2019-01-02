@@ -86,8 +86,3 @@ task testResults {
     userProps.store(propsFile.newWriter(), null)
   }
 }
-
-task wrapper(type: Wrapper) {
-  jarFile = rootProject.file('.gradle-wrapper/gradle-wrapper.jar')
-}
-
