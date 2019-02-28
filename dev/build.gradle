@@ -24,7 +24,7 @@ subprojects {
   def bndProject = bndWorkspace.getProject(name)
 
   if (bndProject != null) {
-    apply plugin: 'biz.aQute.bnd'
+    apply plugin: bndPlugin
   } else {
     task publish { }
     task release { }
@@ -120,4 +120,12 @@ wrapper {
 // Ensure the root project has the 'audit' task so it shows up in the output of `./gradlew tasks`
 task audit {
   group = "verification"
+}
+
+tasks.register('buildscriptDependencies') {
+  doLast {
+    println "bnd_plugin: ${bnd_plugin}"
+    println "bnd_repourl: ${bnd_repourl}"
+    println buildscript.configurations.classpath.asPath
+  }
 }

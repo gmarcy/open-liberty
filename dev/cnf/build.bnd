@@ -63,7 +63,7 @@ push.ibm.repository:
 #-snapshot: ${if;${is.release};;SNAPSHOT}
 
 # Don't upload sources or javadoc unless bundle overrides
--maven-release: ${if;${driver;gradle};remote;local}, sources;path=NONE, javadoc;path=NONE
+-maven-release: sources;path=NONE, javadoc;path=NONE
 
 bin: ${if;${driver;gradle};build/classes/java/main;bin}
 testbin: ${if;${driver;gradle};build/classes/java/test;bin_test}

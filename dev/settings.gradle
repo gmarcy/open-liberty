@@ -279,6 +279,7 @@ private boolean parseBoolean(String value) {
 import aQute.bnd.build.Workspace
 import aQute.bnd.osgi.Constants
 import java.text.SimpleDateFormat
+import aQute.bnd.gradle.BndPlugin
 
 Workspace.setDriver(Constants.BNDDRIVER_GRADLE)
 Workspace.addGestalt(Constants.GESTALT_BATCH, null)
@@ -309,13 +310,20 @@ def projectNames = startParameter.taskNames.collect { taskName ->
   }
 }.toSet()
 
+println "allEmpty " + allEmpty
+println "projectNames " + projectNames
+
 /* Include the default project name if in a subproject or no tasks specified */
 if ((startParameter.currentDir != rootDir) || projectNames.empty) {
   projectNames.add(defaultProjectName)
 }
 
+println "projectNames " + projectNames
+
 /* If bnd_build used but declared empty, add all non-private folders of rootDir */
-def addAll = projectNames.remove('')
+def addAll = (projectNames.remove('') && !allEmpty)
+println "addAll " + addAll
+println "projectNames " + projectNames
 if (addAll) {
   println 'Preparing all bnd projects in the workspace (this can take a while)'
 }
@@ -374,6 +382,7 @@ projectNames.each { projectName ->
 /* Pass workspace to root project */
 gradle.projectsLoaded { gradle ->
   gradle.rootProject.ext.bndWorkspace = workspace
+  gradle.rootProject.ext.bndPlugin = BndPlugin.class
   gradle.rootProject.ext.gradleBndProjects = allBndProjects
   gradle.rootProject.ext.parseBoolean = { value -> parseBoolean(value) }
 }
