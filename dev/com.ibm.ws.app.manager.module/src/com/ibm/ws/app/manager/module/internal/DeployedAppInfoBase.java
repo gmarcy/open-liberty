@@ -30,10 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.InvalidSyntaxException;
-import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 
@@ -41,6 +39,7 @@ import com.ibm.websphere.ras.Tr;
 import com.ibm.websphere.ras.TraceComponent;
 import com.ibm.websphere.ras.annotation.Trivial;
 import com.ibm.ws.app.manager.module.ApplicationNestedConfigHelper;
+import com.ibm.ws.app.manager.module.DeployedAppServices;
 import com.ibm.ws.classloading.ClassLoaderConfigHelper;
 import com.ibm.ws.classloading.ClassLoadingButler;
 import com.ibm.ws.classloading.java2sec.PermissionManager;
@@ -122,19 +121,17 @@ public abstract class DeployedAppInfoBase extends SimpleDeployedAppInfoBase impl
     }
 
     protected static final class SharedLibDeploymentInfo {
-        private final BundleContext bundleContext;
         private final WsLocationAdmin locAdmin;
         private final ArtifactContainerFactory artifactFactory;
         private final AdaptableModuleFactory moduleFactory;
 
         private final List<ContainerInfo> classesContainerInfo = new ArrayList<ContainerInfo>();
 
-        public SharedLibDeploymentInfo(DeployedAppInfoFactoryBase factory, String parentPid) {
+        public SharedLibDeploymentInfo(DeployedAppServices deployedAppServices, String parentPid) {
 
-            this.bundleContext = factory.getBundleContext();
-            this.locAdmin = factory.getLocationAdmin();
-            this.artifactFactory = factory.getArtifactFactory();
-            this.moduleFactory = factory.getModuleFactory();
+            this.locAdmin = deployedAppServices.getLocationAdmin();
+            this.artifactFactory = deployedAppServices.getArtifactFactory();
+            this.moduleFactory = deployedAppServices.getModuleFactory();
 
             try {
                 // Find the classloaders for the application
@@ -144,16 +141,16 @@ public abstract class DeployedAppInfoBase extends SimpleDeployedAppInfoBase impl
                 classloaderFilter.append(FilterUtils.createPropertyFilter("config.parentPID", parentPid));
                 classloaderFilter.append(')');
 
-                Configuration[] classloaderConfigs = factory.getConfigurationAdmin().listConfigurations(classloaderFilter.toString());
+                Configuration[] classloaderConfigs = deployedAppServices.getConfigurationAdmin().listConfigurations(classloaderFilter.toString());
                 if (classloaderConfigs != null && classloaderConfigs.length == 1) {
                     Configuration cfg = classloaderConfigs[0];
                     Dictionary<String, Object> props = cfg.getProperties();
                     if (props != null) {
                         String[] libraryPIDs = (String[]) props.get("privateLibraryRef");
-                        processLibraryPIDs(classesContainerInfo, libraryPIDs, LibraryType.PRIVATE_LIB);
+                        processLibraryPIDs(deployedAppServices, classesContainerInfo, libraryPIDs, LibraryType.PRIVATE_LIB);
 
                         libraryPIDs = (String[]) props.get("commonLibraryRef");
-                        processLibraryPIDs(classesContainerInfo, libraryPIDs, LibraryType.COMMON_LIB);
+                        processLibraryPIDs(deployedAppServices, classesContainerInfo, libraryPIDs, LibraryType.COMMON_LIB);
                     } else {
                         cfg.delete();
                         return;
@@ -161,7 +158,8 @@ public abstract class DeployedAppInfoBase extends SimpleDeployedAppInfoBase impl
                 }
 
                 if (classesContainerInfo.isEmpty()) {
-                    addLibraryContainers(classesContainerInfo, factory.getGlobalSharedLibraryPid(), LibraryType.GLOBAL_LIB, factory.getGlobalSharedLibrary());
+                    addLibraryContainers(classesContainerInfo, deployedAppServices.getGlobalSharedLibraryPid(), LibraryType.GLOBAL_LIB,
+                                         deployedAppServices.getGlobalSharedLibrary());
                 }
             } catch (IOException e) {
                 // Auto FFDC
@@ -176,13 +174,12 @@ public abstract class DeployedAppInfoBase extends SimpleDeployedAppInfoBase impl
             return this.classesContainerInfo;
         }
 
-        private void processLibraryPIDs(List<ContainerInfo> sharedLibContainers, String[] libraryPIDs, LibraryContainerInfo.LibraryType libType) throws InvalidSyntaxException {
+        private void processLibraryPIDs(DeployedAppServices deployedAppServices, List<ContainerInfo> sharedLibContainers, String[] libraryPIDs,
+                                        LibraryContainerInfo.LibraryType libType) throws InvalidSyntaxException {
             if (libraryPIDs != null) {
                 for (String pid : libraryPIDs) {
-                    String libraryFilter = FilterUtils.createPropertyFilter(Constants.SERVICE_PID, pid);
-                    Collection<ServiceReference<Library>> libraryRefs = bundleContext.getServiceReferences(Library.class, libraryFilter);
-                    for (ServiceReference<Library> libraryRef : libraryRefs) {
-                        Library library = bundleContext.getService(libraryRef);
+                    Collection<Library> libraries = deployedAppServices.getLibrariesFromPid(pid);
+                    for (Library library : libraries) {
                         addLibraryContainers(sharedLibContainers, pid, libType, library);
                     }
                 }
@@ -289,17 +286,17 @@ public abstract class DeployedAppInfoBase extends SimpleDeployedAppInfoBase impl
     private final PermissionsConfig permissionsConfig;
 
     protected DeployedAppInfoBase(ApplicationInformation<?> applicationInformation,
-                                  DeployedAppInfoFactoryBase factory) throws UnableToAdaptException {
-        super(factory);
+                                  DeployedAppServices deployedAppServices) throws UnableToAdaptException {
+        super(deployedAppServices);
         this.applicationInformation = applicationInformation;
         this.location = applicationInformation.getLocation();
-        this.classLoadingService = factory.getClassLoadingService();
-        this.globalSharedLibrary = factory.getGlobalSharedLibrary();
-        this.futureMonitor = factory.getFutureMonitor();
-        this.configAdmin = factory.getConfigurationAdmin();
+        this.classLoadingService = deployedAppServices.getClassLoadingService();
+        this.globalSharedLibrary = deployedAppServices.getGlobalSharedLibrary();
+        this.futureMonitor = deployedAppServices.getFutureMonitor();
+        this.configAdmin = deployedAppServices.getConfigurationAdmin();
         this.libraryConfigHelper = new ClassLoaderConfigHelper(getConfigHelper(), configAdmin, classLoadingService);
         this.isDelegateLast = libraryConfigHelper.isDelegateLast();
-        this.permissionManager = factory.getPermissionManager();
+        this.permissionManager = deployedAppServices.getPermissionManager();
         try {
             this.permissionsConfig = getContainer().adapt(PermissionsConfig.class); // throws UnableToAdaptException
         } catch (UnableToAdaptException e) {
@@ -313,7 +310,7 @@ public abstract class DeployedAppInfoBase extends SimpleDeployedAppInfoBase impl
         if (sourcePid != null) {
             parentPid = sourcePid;
         }
-        this.sharedLibDeploymentInfo = new SharedLibDeploymentInfo(factory, parentPid);
+        this.sharedLibDeploymentInfo = new SharedLibDeploymentInfo(deployedAppServices, parentPid);
     }
 
     @Trivial

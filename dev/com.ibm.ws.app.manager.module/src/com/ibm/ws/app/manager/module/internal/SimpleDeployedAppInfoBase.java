@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ibm.ws.app.manager.module.DeployedAppInfo;
+import com.ibm.ws.app.manager.module.DeployedAppServices;
 import com.ibm.ws.app.manager.module.DeployedModuleInfo;
 import com.ibm.ws.container.service.app.deploy.ApplicationInfo;
 import com.ibm.ws.container.service.app.deploy.ContainerInfo;
@@ -424,6 +425,7 @@ public abstract class SimpleDeployedAppInfoBase implements DeployedAppInfo {
     public boolean starting;
     public boolean started;
 
+    protected final DeployedAppServices deployedAppServices;
     protected final ApplicationInfoFactory appInfoFactory;
     protected final MetaDataService metaDataService;
     protected final StateChangeService stateChangeService;
@@ -432,12 +434,13 @@ public abstract class SimpleDeployedAppInfoBase implements DeployedAppInfo {
     protected final List<ModuleContainerInfoBase> moduleContainerInfos = new ArrayList<ModuleContainerInfoBase>();
     protected final Map<ExtendedModuleInfo, ModuleHandler> activeModuleHandlers = new IdentityHashMap<ExtendedModuleInfo, ModuleHandler>(4);
 
-    protected SimpleDeployedAppInfoBase(DeployedAppInfoFactoryBase factory) throws UnableToAdaptException {
+    protected SimpleDeployedAppInfoBase(DeployedAppServices deployedAppServices) throws UnableToAdaptException {
         this.starting = false;
         this.started = false;
-        this.appInfoFactory = factory.getApplicationInfoFactory();
-        this.metaDataService = factory.getMetaDataService();
-        this.stateChangeService = factory.getStateChangeService();
+        this.deployedAppServices = deployedAppServices;
+        this.appInfoFactory = deployedAppServices.getApplicationInfoFactory();
+        this.metaDataService = deployedAppServices.getMetaDataService();
+        this.stateChangeService = deployedAppServices.getStateChangeService();
         this.moduleClassesInfo = new ModuleClassesInfoProvider();
     }
 
