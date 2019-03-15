@@ -257,6 +257,7 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
         containerFactorySRRef.activate(context);
         adaptableModuleFactorySRRef.activate(context);
         applicationInfoFactorySRRef.activate(context);
+        deployedAppServicesSRRef.activate(context);
         webModuleHandlerSRRef.activate(context);
         variableRegistrySRRef.activate(context);
 
@@ -340,6 +341,7 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
         containerFactorySRRef.deactivate(context);
         adaptableModuleFactorySRRef.deactivate(context);
         applicationInfoFactorySRRef.deactivate(context);
+        deployedAppServicesSRRef.deactivate(context);
         webModuleHandlerSRRef.deactivate(context);
         variableRegistrySRRef.deactivate(context);
         ctx = null;
