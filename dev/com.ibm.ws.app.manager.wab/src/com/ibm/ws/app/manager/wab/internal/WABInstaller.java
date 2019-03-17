@@ -75,7 +75,6 @@ import com.ibm.ws.container.service.app.deploy.extended.ModuleContainerInfo;
 import com.ibm.ws.container.service.metadata.MetaDataException;
 import com.ibm.ws.eba.wab.integrator.EbaProvider;
 import com.ibm.ws.javaee.dd.web.WebApp;
-import com.ibm.ws.runtime.metadata.ModuleMetaData;
 import com.ibm.ws.runtime.update.RuntimeUpdateListener;
 import com.ibm.ws.runtime.update.RuntimeUpdateManager;
 import com.ibm.ws.runtime.update.RuntimeUpdateNotification;
@@ -495,14 +494,15 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
                         wabGroupsLock.unlock();
 
                         ModuleContainerInfo mci = deployedApp.createModuleContainerInfo(webModuleHandler, contextRoot, wabContainer, modPath, loader);
+                        wab.setModuleContainerInfo(mci);
                         if (wab.getCreatedApplicationInfo()) {
-                            if (!deployedApp.installApp(mci, wab)) {
+                            if (!deployedApp.installApp(wab)) {
                                 postFailureEvent(wab, "wab.install.fail", bundle, contextRoot);
                                 Tr.error(tc, "wab.install.fail", bundle, contextRoot);
                                 return false;
                             }
                         } else {
-                            if (!deployedApp.installModule(mci, wab)) {
+                            if (!deployedApp.installModule(wab)) {
                                 postFailureEvent(wab, "wab.install.fail", bundle, contextRoot);
                                 Tr.error(tc, "wab.install.fail", bundle, contextRoot);
                                 return false;
@@ -560,13 +560,18 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
                 if (group != null) {
                     //synchronize on the WABGroup to match up with install
                     synchronized (group) {
+                        WABDeployedAppInfo deployedApp = (WABDeployedAppInfo) group.getDeployedAppInfo();
                         if (group.removeWAB(wab)) {
                             // group is empty remove it
                             wabGroups.remove(groupKey);
                             groupsLocked = false;
                             wabGroupsLock.unlock();
                         }
-                        webModuleHandler.undeployModule(wab.getDeployedModuleInfo());
+                        if (wab.getCreatedApplicationInfo()) {
+                            deployedApp.uninstallApp(wab);
+                        } else {
+                            deployedApp.uninstallModule(wab);
+                        }
                     }
                 }
             } finally {
@@ -575,10 +580,6 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
                 }
             }
 
-            //if we created app info for this WAB, we must destroy it
-            if (wab.getCreatedApplicationInfo()) {
-                applicationInfoFactorySRRef.getService().destroyApplicationInfo(info);
-            }
             return true;
             //if the entry was already removed then that entire WAB group was already removed
         }
@@ -1511,20 +1512,31 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
             return deployedMod;
         }
 
-        public boolean installApp(ModuleContainerInfo mci, WAB wab) {
+        public boolean installApp(WAB wab) {
             currentWAB = wab;
             Future<Boolean> result = futureMonitor.createFuture(Boolean.class);
             return installApp(result);
         }
 
-        public boolean installModule(ModuleContainerInfo mci, WAB wab) throws MetaDataException, InterruptedException, ExecutionException {
+        public boolean installModule(WAB wab) throws MetaDataException, InterruptedException, ExecutionException {
+            WebModuleContainerInfo mci = (WebModuleContainerInfo) wab.getModuleContainerInfo();
             currentWAB = wab;
-            ((WebModuleContainerInfo) mci).createModuleMetaData(appInfo, this);
-            DeployedModuleInfo deployedMod = getDeployedModule(((WebModuleContainerInfo) mci).moduleInfo);
+            mci.createModuleMetaData(appInfo, this);
+            DeployedModuleInfo deployedMod = getDeployedModule(mci.moduleInfo);
 
             //deploy the module
-            Future<Boolean> appFuture = ((WebModuleContainerInfo) mci).moduleHandler.deployModule(deployedMod, this);
+            Future<Boolean> appFuture = mci.moduleHandler.deployModule(deployedMod, this);
             return !appFuture.isDone() || appFuture.get();
+        }
+
+        public void uninstallApp(WAB wab) {
+            uninstallApp();
+        }
+
+        public void uninstallModule(WAB wab) {
+            WebModuleContainerInfo mci = (WebModuleContainerInfo) wab.getModuleContainerInfo();
+            DeployedModuleInfo deployedMod = wab.getDeployedModuleInfo();
+            mci.moduleHandler.undeployModule(deployedMod);
         }
 
         public String getModuleName(ModuleContainerInfo mci) {
