@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -474,7 +475,7 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
                 try {
                     wabGroup = wabGroups.get(appInfo.getName());
                     if (wabGroup == null) {
-                        wabGroup = new WABGroup(new WABDeployedAppInfo(appInfo));
+                        wabGroup = new WABGroup(new WABDeployedAppInfo(deployedAppServicesSRRef.getService(), appInfo));
                         wabGroups.put(appInfo.getName(), wabGroup);
                     }
 
@@ -493,33 +494,25 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
                         groupsLocked = false;
                         wabGroupsLock.unlock();
 
-                        ModuleContainerInfo mci = deployedApp.createModuleContainerInfo(contextRoot, wabContainer, modPath, loader);
-                        ModuleMetaData mmd = deployedApp.createModuleMetaData(mci);
-                        ExtendedModuleInfo moduleInfo = deployedApp.getModuleInfo(mci);
-                        DeployedModuleInfo deployedMod = deployedApp.getDeployedModule(moduleInfo);
-                        wab.setDeployedModuleInfo(deployedMod);
-
-                        WebAppConfiguration appConfig = (WebAppConfiguration)((WebModuleMetaData)mmd).getConfiguration();
-
-                        if (appConfig != null) {
-                            String virtualHost = wab.getVirtualHost();
-                            if (virtualHost != null) {
-                                appConfig.setVirtualHostName(virtualHost);
+                        ModuleContainerInfo mci = deployedApp.createModuleContainerInfo(webModuleHandler, contextRoot, wabContainer, modPath, loader);
+                        if (wab.getCreatedApplicationInfo()) {
+                            if (!deployedApp.installApp(mci, wab)) {
+                                postFailureEvent(wab, "wab.install.fail", bundle, contextRoot);
+                                Tr.error(tc, "wab.install.fail", bundle, contextRoot);
+                                return false;
                             }
-                        }
-
-                        //deploy the module
-                        Future<Boolean> appFuture = webModuleHandler.deployModule(deployedMod, deployedApp);
-                        if (appFuture.isDone() && !appFuture.get()) {
-                            postFailureEvent(wab, "wab.install.fail", bundle, contextRoot);
-                            Tr.error(tc, "wab.install.fail", bundle, contextRoot);
-                            return false;
+                        } else {
+                            if (!deployedApp.installModule(mci, wab)) {
+                                postFailureEvent(wab, "wab.install.fail", bundle, contextRoot);
+                                Tr.error(tc, "wab.install.fail", bundle, contextRoot);
+                                return false;
+                            }
                         }
 
                         //register the WAB bundle with a key that can be looked up elsewhere
                         //based on the J2EEName form
                         Dictionary<String, Object> bRegProps = new Hashtable<String, Object>(1);
-                        bRegProps.put("web.module.key", appInfo.getName() + "#" + moduleInfo.getName());
+                        bRegProps.put("web.module.key", appInfo.getName() + "#" + deployedApp.getModuleName(mci));
                         bRegProps.put("installed.wab.contextRoot", contextRoot);
                         bRegProps.put("installed.wab.container", wabContainer);
                         ServiceRegistration<Bundle> reg = ctx.registerService(Bundle.class, bundle, bRegProps);
@@ -1481,17 +1474,15 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
 
     }
 
-    final class WABDeployedAppInfo extends SimpleDeployedAppInfoBase {
-        WABDeployedAppInfo(ExtendedApplicationInfo appInfo) throws UnableToAdaptException {
-            super(deployedAppServicesSRRef.getService());
+    static final class WABDeployedAppInfo extends SimpleDeployedAppInfoBase {
+        WABDeployedAppInfo(DeployedAppServices deployedAppServices, ExtendedApplicationInfo appInfo) throws UnableToAdaptException {
+            super(deployedAppServices);
             super.appInfo = appInfo;
         }
 
-        ExtendedModuleInfo getModuleInfo(ModuleContainerInfo mci) {
-            return ((WebModuleContainerInfo) mci).moduleInfo;
-        }
+        WAB currentWAB;
 
-        ModuleContainerInfo createModuleContainerInfo(String contextRoot, Container moduleContainer,
+        ModuleContainerInfo createModuleContainerInfo(ModuleHandler webModuleHandler, String contextRoot, Container moduleContainer,
                                                       String moduleLocation, ClassLoader loader) throws UnableToAdaptException {
             final ClassLoader moduleClassLoader = loader;
             final ModuleClassLoaderFactory moduleClassLoaderFactory = new ModuleClassLoaderFactory() {
@@ -1501,14 +1492,43 @@ public class WABInstaller implements EventHandler, ExtensionFactory, RuntimeUpda
                 }
             };
             String moduleURI = ModuleInfoUtils.getModuleURIFromLocation(moduleLocation);
-            WebModuleContainerInfo mci = new WebModuleContainerInfo(webModuleHandlerSRRef.getServiceWithException(), deployedAppServices.getModuleMetaDataExtenders("web"), deployedAppServices.getNestedModuleMetaDataFactories("web"), moduleContainer, null, moduleURI, moduleClassLoaderFactory, moduleClassesInfo, contextRoot);
+            WebModuleContainerInfo mci = new WebModuleContainerInfo(webModuleHandler, deployedAppServices.getModuleMetaDataExtenders("web"), deployedAppServices.getNestedModuleMetaDataFactories("web"), moduleContainer, null, moduleURI, moduleClassLoaderFactory, moduleClassesInfo, contextRoot);
             moduleContainerInfos.add(mci);
             return mci;
         }
 
-        ModuleMetaData createModuleMetaData(ModuleContainerInfo mci) throws MetaDataException {
-            //create the WebModule
-            return ((WebModuleContainerInfo) mci).createModuleMetaData(appInfo, this);
+        public DeployedModuleInfo getDeployedModule(ExtendedModuleInfo moduleInfo) {
+            DeployedModuleInfo deployedMod = super.getDeployedModule(moduleInfo);
+            currentWAB.setDeployedModuleInfo(deployedMod);
+
+            WebAppConfiguration appConfig = (WebAppConfiguration)((WebModuleMetaData)moduleInfo.getMetaData()).getConfiguration();
+            if (appConfig != null) {
+                String virtualHost = currentWAB.getVirtualHost();
+                if (virtualHost != null) {
+                    appConfig.setVirtualHostName(virtualHost);
+                }
+            }
+            return deployedMod;
+        }
+
+        public boolean installApp(ModuleContainerInfo mci, WAB wab) {
+            currentWAB = wab;
+            Future<Boolean> result = futureMonitor.createFuture(Boolean.class);
+            return installApp(result);
+        }
+
+        public boolean installModule(ModuleContainerInfo mci, WAB wab) throws MetaDataException, InterruptedException, ExecutionException {
+            currentWAB = wab;
+            ((WebModuleContainerInfo) mci).createModuleMetaData(appInfo, this);
+            DeployedModuleInfo deployedMod = getDeployedModule(((WebModuleContainerInfo) mci).moduleInfo);
+
+            //deploy the module
+            Future<Boolean> appFuture = ((WebModuleContainerInfo) mci).moduleHandler.deployModule(deployedMod, this);
+            return !appFuture.isDone() || appFuture.get();
+        }
+
+        public String getModuleName(ModuleContainerInfo mci) {
+            return ((WebModuleContainerInfo) mci).moduleInfo.getName();
         }
     }
 }
